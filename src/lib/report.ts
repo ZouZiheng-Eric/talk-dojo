@@ -58,7 +58,7 @@ export function buildReport(
 }
 
 /**
- * 在本地 `buildReport` 基础上，若 `/api/score` 成功：采用 AI 五维分、综合分、锐评；
+ * 在本地 `buildReport` 基础上，若 `/api/score` 成功：采用 AI 五维分、综合分、锐评与改进建议；
  * 若有 `goldenQuote`，金句区只展示该句（文本为用户原话），并附带各轮金句分。
  */
 export async function buildReportWithOptionalAi(
@@ -81,12 +81,16 @@ export async function buildReportWithOptionalAi(
       ? pickGoldenQuoteFromLineScores(rounds, lineScores)
       : null);
 
+  const suggestionLines =
+    ai.suggestions.length > 0 ? ai.suggestions : undefined;
+
   if (golden && golden.text.trim()) {
     return {
       ...base,
       scores: ai.scores,
       overall: ai.overall,
       coachNotes: ai.coachNotes.length > 0 ? ai.coachNotes : undefined,
+      suggestions: suggestionLines,
       lineScores,
       goldenQuote: golden,
       quotes: [golden.text.trim()],
@@ -98,6 +102,7 @@ export async function buildReportWithOptionalAi(
     scores: ai.scores,
     overall: ai.overall,
     coachNotes: ai.coachNotes.length > 0 ? ai.coachNotes : undefined,
+    suggestions: suggestionLines,
     lineScores,
   };
 }

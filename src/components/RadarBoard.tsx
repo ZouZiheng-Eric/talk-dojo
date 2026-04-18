@@ -85,16 +85,14 @@ export function RadarBoard({ scores }: Props) {
               );
             }}
           />
+          {/* Recharts 路径动画会按 data 顺序描边，首维多在左侧，易像「从左边飞来」；关闭路径动画，保留外层 motion 入场 */}
           <Radar
             name="档位"
             dataKey="value"
             stroke="#0d9488"
             fill="#0d9488"
             fillOpacity={0.22}
-            isAnimationActive
-            animationBegin={200}
-            animationDuration={1100}
-            animationEasing="ease-out"
+            isAnimationActive={false}
           />
         </RadarChart>
       </ResponsiveContainer>

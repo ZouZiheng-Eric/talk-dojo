@@ -13,8 +13,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { mockParse, mockParseFromScene } from "@/lib/mock";
 import { SESSION_REPORT_KEY } from "@/lib/constants";
+import { readSessionParse } from "@/lib/sessionParse";
 import { buildReportWithOptionalAi } from "@/lib/report";
-import type { TrainingRound } from "@/lib/types";
+import type { ParseResult, TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
 import { fetchCoachLine } from "@/lib/llm/client";
 import { useToast } from "@/components/ToastProvider";
@@ -97,10 +98,23 @@ function TrainInner() {
     return v ? decodeURIComponent(v) : "";
   }, [search]);
 
-  const parse = useMemo(
-    () => (scene ? mockParseFromScene(scene, opponent) : mockParse(url)),
-    [opponent, scene, url]
+  const [parse, setParse] = useState<ParseResult>(() =>
+    scene ? mockParseFromScene(scene, opponent) : mockParse(url)
   );
+
+  useEffect(() => {
+    if (scene) {
+      setParse(mockParseFromScene(scene, opponent));
+      return;
+    }
+    if (url) {
+      const s = readSessionParse(url);
+      if (s) setParse(s);
+      else setParse(mockParse(url));
+    } else {
+      setParse(mockParse(""));
+    }
+  }, [scene, opponent, url]);
   const contextSource = useMemo(() => {
     if (url) return url;
     if (!scene) return "";

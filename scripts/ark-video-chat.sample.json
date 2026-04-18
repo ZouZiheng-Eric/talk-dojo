@@ -1,0 +1,22 @@
+{
+  "model": "doubao-seed-2-0-pro-260215",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "详细分析这个视频：画面内容、人物动作、语音内容、总结（一句话）"
+        },
+        {
+          "type": "video_url",
+          "video_url": {
+            "url": "REPLACE_WITH_HTTPS_VIDEO_URL"
+          }
+        }
+      ]
+    }
+  ],
+  "temperature": 0.38,
+  "max_tokens": 1024
+}

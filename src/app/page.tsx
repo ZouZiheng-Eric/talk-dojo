@@ -134,15 +134,9 @@ const TILE_CLASS = `${linkPressable} flex h-full min-h-0 w-full min-w-0 flex-col
 
 export default function HomePage() {
   const router = useRouter();
-  const [link, setLink] = useState("");
   const [rolePicker, setRolePicker] = useState<null | "authority" | "peer">(
     null
   );
-
-  const start = () => {
-    const q = encodeURIComponent(link.trim() || "https://example.com/video");
-    router.push(`/parse?url=${q}`);
-  };
 
   const confirmAuthorityChoice = (value: HomeStoredAuthorityChoice) => {
     sessionStorage.setItem(HOME_STORED_AUTHORITY_CHOICE_KEY, value);
@@ -280,25 +274,17 @@ export default function HomePage() {
             transition={{ duration: 0.4, delay: 0.22 }}
             className="mx-auto w-full max-w-[20rem] space-y-3 rounded-[1.35rem] bg-white/95 p-4 shadow-lg shadow-black/15 ring-1 ring-black/5"
           >
-            <label className="block text-center text-xs font-medium uppercase tracking-[0.14em] text-[#64748b]">
-              短视频链接
-            </label>
-            <input
-              className="w-full rounded-full border border-black/10 bg-white px-4 py-3 text-[15px] text-[#0f172a] outline-none ring-0 transition-shadow placeholder:text-[#94a3b8] focus:border-[#0d9488]/40 focus:shadow-[0_0_0_3px_rgba(13,148,136,0.15)]"
-              placeholder="粘贴短视频链接"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && start()}
-            />
-            <motion.button
-              type="button"
-              className="w-full rounded-full bg-[#0f172a] py-3.5 text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-95 active:opacity-90"
-              onClick={start}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 480, damping: 26 }}
-            >
-              开始训练
-            </motion.button>
+            <p className="text-center text-sm leading-relaxed text-[#475569]">
+              上传本地视频，解析语境再开练。
+            </p>
+            <motion.div whileTap={{ scale: 0.98 }} transition={{ type: "spring", stiffness: 480, damping: 26 }}>
+              <Link
+                href="/parse"
+                className="flex w-full items-center justify-center rounded-full bg-[#0f172a] py-3.5 text-[15px] font-semibold text-white shadow-sm transition-opacity hover:opacity-95 active:opacity-90"
+              >
+                选择视频并解析
+              </Link>
+            </motion.div>
           </motion.div>
         </div>
       </div>

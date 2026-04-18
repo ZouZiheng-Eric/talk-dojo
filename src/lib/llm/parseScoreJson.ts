@@ -4,6 +4,7 @@ export type AiScorePayload = {
   scores: ReportScores;
   overall: number;
   coachNotes: string[];
+  suggestions: string[];
   /** 每轮用户原话的金句分，与 rounds 中 round 对应 */
   lineScores: Array<{ round: number; lineScore: number }>;
 };
@@ -87,6 +88,14 @@ export function parseAiScoreContent(raw: string): AiScorePayload | null {
     .slice(0, 3)
     .map((x) => (x.length > 120 ? `${x.slice(0, 120)}…` : x));
 
+  const rawSuggestions = Array.isArray(o.suggestions) ? o.suggestions : [];
+  const suggestions = rawSuggestions
+    .filter((x): x is string => typeof x === "string")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((x) => (x.length > 150 ? `${x.slice(0, 150)}…` : x));
+
   const lineScores: Array<{ round: number; lineScore: number }> = [];
   if (Array.isArray(o.lineScores)) {
     for (const item of o.lineScores) {
@@ -100,5 +109,5 @@ export function parseAiScoreContent(raw: string): AiScorePayload | null {
     }
   }
 
-  return { scores, overall, coachNotes, lineScores };
+  return { scores, overall, coachNotes, suggestions, lineScores };
 }

@@ -16,6 +16,7 @@ out/
 
 # misc
 .DS_Store
+*.tsbuildinfo
 *.pem
 npm-debug.log*
 yarn-debug.log*
@@ -27,3 +28,8 @@ yarn-error.log*
 # IDE
 .idea
 .vscode
+
+# 本地样本与素材（保留 data/ 占位，不提交目录内具体文件）
+/data/*
+!/data/.gitkeep
+!/data/README.md

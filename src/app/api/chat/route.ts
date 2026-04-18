@@ -27,8 +27,11 @@ export async function POST(req: NextRequest) {
   }
 
   const cfg = getLlmServerConfig();
+  /** 训练轮次台词：未单独配置 LLM_CHAT_THINKING 时不要继承 LLM_THINKING，避免方舟等接入点对 thinking 报错/空内容导致 502 */
   const result = await postChatCompletion(messages, {
-    thinkingType: cfg.chatThinkingType ?? cfg.thinkingType,
+    ...(cfg.chatThinkingType !== undefined
+      ? { thinkingType: cfg.chatThinkingType }
+      : { omitThinking: true }),
   });
 
   if (!result.ok) {

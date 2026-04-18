@@ -1,6 +1,6 @@
 # 回嘴道场 / Talk Dojo
 
-移动端优先的 Web 应用：粘贴短视频链接 → 语境解析（当前为 Mock）→ 三轮高压对话训练 → 战报（综合分 + 五维雷达 + 金句）→ 本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。
+移动端优先的 Web 应用：上传本地短视频 → 语境解析（当前为 Mock）→ 三轮高压对话训练 → 战报（综合分 + 五维雷达 + 金句）→ 本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。
 
 ---
 
@@ -74,8 +74,8 @@ npm run dev
 
 | 路径 | 文件 | 说明 |
 |------|------|------|
-| `/` | `src/app/page.tsx` | 输入链接，`router.push('/parse?url=...')` |
-| `/parse` | `src/app/parse/page.tsx` | 展示语境画像，进入 `/train?url=...` |
+| `/` | `src/app/page.tsx` | 引导至解析页上传本地视频 |
+| `/parse` | `src/app/parse/page.tsx` | 上传并解析，展示语境画像，进入 `/train?url=local://video` |
 | `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入，结束后写入战报并 `replace('/report')` |
 | `/report` | `src/app/report/page.tsx` | 读 `sessionStorage` 展示战报，可收藏 |
 | `/favorites` | `src/app/favorites/page.tsx` | 读 `localStorage` 列表 |
@@ -218,7 +218,7 @@ git push origin main
 
 ## 当前限制（产品/技术）
 
-- 解析结果固定 Mock，与输入链接无关。
+- 未配置大模型时，语境解析为固定 Mock，与所选视频文件无关。
 - 无账号体系，清除浏览器数据会丢失收藏。
 - 战报仅保留最近一次于 `sessionStorage`。
 - 大模型为可选：未配置 `LLM_API_KEY` 或关闭 `NEXT_PUBLIC_USE_LLM` 时，训练话术为静态 Mock。

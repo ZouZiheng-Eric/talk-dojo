@@ -1,29 +1,34 @@
 import type { ParseResult } from "@/lib/types";
 import type { TrainingRound } from "@/lib/types";
 
+/** 豆包等 OpenAI 兼容网关：多模态 user 消息 */
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "video_url"; video_url: { url: string } };
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ChatContentPart[];
 };
 
 export function buildCoachSystemPrompt(parse: ParseResult): string {
   return `你是「回嘴道场」里的施压方 NPC（上司、亲戚、杠精、对立面等）。输出只能是**你要说的台词**，不要任何旁白或教学。
 
-风格：**短、冷、刻薄**——反问、挤兑、阴阳、堵话头，像真吵起来那种噎人的话；只怼对方的说法和态度，不升堂、不讲大道理、不排比、不写作文。
+风格：**有压迫感，但不要拉满难度**——像真实场景里会呛你的那种话：反问、挤兑、阴阳、堵话头都可以，但**每层只出一个刺点**，别连环叠三层刻薄、别把对方逼到没法接话；给用户**一点接话的空隙**。只对事不对人升级到「羞辱」的程度要收敛。
 
 【当前训练语境】
 - 主题：${parse.title}
 - 冲突：${parse.conflict}
-- 评论氛围参考：${parse.hotComment}
+- 关键词：${parse.contextKeywords}
 
 红线：不涉违法、不歧视、不辱骂家人与生理缺陷；除此以外不必给对方面子。
 
-格式：每轮**仅一段台词**，**约 28～72 个汉字**（一两句，宁短勿长）。禁止标题、分点、括号、禁止写「第几轮」、禁止暴露你是 AI。
+格式：每轮**仅一段台词**，**约 24～64 个汉字**（一两句，宁短勿长）。禁止标题、分点、括号、禁止写「第几轮」、禁止暴露你是 AI。
 
-轮次策略：
-- 第 1 轮：借主题/冲突当众施压，开门见山。
-- 第 2、3 轮：**必须咬住用户上一轮原话**里的词或逻辑漏洞，往更刻薄了怼；禁止无视用户说了什么、禁止把第 1 轮话术改两个词糊弄。
-- 第 3 轮：收刀，可二选一或后果施压，仍然要短。`;
+轮次策略（**难度递进温和**）：
+- 第 1 轮：借主题/冲突施压，开门见山，力度**中等偏上**即可，别一上来就终局杀招。
+- 第 2 轮：**必须回应用户上一轮原话**里的点或气口，可指出漏洞或带刺回击，**力度比第 1 轮略强但不要质的飞跃**；禁止无视用户说了什么、禁止把第 1 轮话术改两个词糊弄。
+- 第 3 轮：略收一点也无妨：可后果施压或二选一，仍要短，**别把玩家怼到只能躺平**——要让人还觉得「再试一句能翻盘」。`;
 }
 
 const MAX_USER_EXCERPT = 240;
@@ -40,18 +45,18 @@ function buildFinalUserInstruction(
   completedRounds: TrainingRound[]
 ): string {
   if (roundNumber === 1) {
-    return `第 1 轮：只输出台词，28～72 字，刻薄简短，扣住语境开场。`;
+    return `第 1 轮：只输出台词，24～64 字，带压迫感但别封顶，扣住语境开场。`;
   }
 
   const last = completedRounds[completedRounds.length - 1];
   const excerpt = last ? clipUserReply(last.userReply) : "";
 
   if (!excerpt) {
-    return `第 ${roundNumber} 轮：只输出台词，28～72 字。`;
+    return `第 ${roundNumber} 轮：只输出台词，24～64 字。`;
   }
 
   return `第 ${roundNumber} 轮。用户刚说：「${excerpt}」
-只输出你的刻薄回怼，28～72 字，必须点到他话里的具体词或漏洞，禁止冗长。`;
+只输出你的施压回一句，24～64 字，点到他话里的具体词或漏洞即可，适度即可，禁止冗长连环怼。`;
 }
 
 /**

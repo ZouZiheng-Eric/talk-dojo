@@ -3,6 +3,7 @@ import { getLlmServerConfig, isLlmConfigured } from "@/config/server";
 import { postChatCompletion } from "@/lib/llm/server/postChatCompletion";
 import { buildScoreMessages } from "@/lib/llm/scoreMessages";
 import { parseAiScoreContent } from "@/lib/llm/parseScoreJson";
+import { parseResultFromJsonObject } from "@/lib/llm/parseVideoParseJson";
 import { pickGoldenQuoteFromLineScores } from "@/lib/reportSnippets";
 import type { ParseResult, TrainingRound } from "@/lib/types";
 
@@ -11,14 +12,9 @@ type Body = {
   rounds?: unknown;
 };
 
-function isParseResult(x: unknown): x is ParseResult {
-  if (!x || typeof x !== "object") return false;
-  const o = x as Record<string, unknown>;
-  return (
-    typeof o.title === "string" &&
-    typeof o.conflict === "string" &&
-    typeof o.hotComment === "string"
-  );
+function bodyParseToResult(x: unknown): ParseResult | null {
+  if (!x || typeof x !== "object") return null;
+  return parseResultFromJsonObject(x as Record<string, unknown>);
 }
 
 function isTrainingRounds(x: unknown): x is TrainingRound[] {
@@ -59,7 +55,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!isParseResult(body.parse) || !isTrainingRounds(body.rounds)) {
+  const parseNorm = bodyParseToResult(body.parse);
+  if (!parseNorm || !isTrainingRounds(body.rounds)) {
     return NextResponse.json(
       { ok: false, code: "BAD_BODY", message: "parse and rounds required" },
       { status: 400 }
@@ -77,7 +74,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const messages = buildScoreMessages(body.parse, body.rounds);
+  const messages = buildScoreMessages(parseNorm, body.rounds);
   const cfg = getLlmServerConfig();
   const result = await postChatCompletion(messages, {
     model: cfg.scoreModel,
@@ -117,6 +114,7 @@ export async function POST(req: NextRequest) {
     scores: parsed.scores,
     overall: parsed.overall,
     coachNotes: parsed.coachNotes,
+    suggestions: parsed.suggestions,
     lineScores: lineScoresNorm,
     goldenQuote,
   });

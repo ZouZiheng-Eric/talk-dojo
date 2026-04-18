@@ -11,6 +11,7 @@ export type AiBattleScore = {
   scores: ReportScores;
   overall: number;
   coachNotes: string[];
+  suggestions: string[];
   lineScores: LineScoreRow[];
   goldenQuote: GoldenQuotePick | null;
 };
@@ -20,6 +21,7 @@ type ScoreApiOk = {
   scores: ReportScores;
   overall: number;
   coachNotes?: string[];
+  suggestions?: string[];
   lineScores?: LineScoreRow[];
   goldenQuote?: GoldenQuotePick | null;
   /** 旧版 API 字段，兼容 */
@@ -58,6 +60,10 @@ export async function fetchAiBattleScore(
         ? data.quotes
         : [];
 
+    const suggestions = Array.isArray(data.suggestions)
+      ? data.suggestions.filter((x): x is string => typeof x === "string")
+      : [];
+
     const lineScores = Array.isArray(data.lineScores) ? data.lineScores : [];
     const goldenQuote =
       data.goldenQuote === null || data.goldenQuote === undefined
@@ -71,6 +77,7 @@ export async function fetchAiBattleScore(
       scores: data.scores,
       overall: Math.round(Number(data.overall)) || 0,
       coachNotes: notes,
+      suggestions,
       lineScores,
       goldenQuote,
     };

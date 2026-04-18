@@ -1,7 +1,8 @@
 export type ParseResult = {
   title: string;
   conflict: string;
-  hotComment: string;
+  /** 关键词（可由模型从评论/弹幕氛围提炼） */
+  contextKeywords: string;
 };
 
 export type TrainingRound = {
@@ -50,6 +51,8 @@ export type BattleReport = {
   goldenQuote?: GoldenQuotePick;
   /** AI 评分接口返回的锐评文案，与 quotes 分离 */
   coachNotes?: string[];
+  /** AI 在锐评之后给出的可执行改进建议（与 coachNotes 区分：建议偏建设性） */
+  suggestions?: string[];
   rounds: TrainingRound[];
   parse: ParseResult;
   videoUrl: string;

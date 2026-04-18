@@ -29,6 +29,11 @@ export type LlmServerConfig = {
   chatThinkingType?: LlmThinkingType;
   /** 评分专用 thinking；未设置则回退 thinkingType */
   scoreThinkingType?: LlmThinkingType;
+  /** 本地视频解析 `/api/video-parse`；未配置则沿用 model */
+  videoParseModel?: string;
+  videoParseThinkingType?: LlmThinkingType;
+  /** 视频理解耗时更长；未设置则沿用 timeoutMs */
+  videoParseTimeoutMs?: number;
 };
 
 export function getLlmServerConfig(): LlmServerConfig {
@@ -57,6 +62,15 @@ export function getLlmServerConfig(): LlmServerConfig {
     thinkingType: parseLlmThinking(process.env.LLM_THINKING),
     chatThinkingType: parseLlmThinking(process.env.LLM_CHAT_THINKING),
     scoreThinkingType: parseLlmThinking(process.env.LLM_SCORE_THINKING),
+    videoParseModel: process.env.LLM_VIDEO_PARSE_MODEL?.trim() || undefined,
+    videoParseThinkingType: parseLlmThinking(
+      process.env.LLM_VIDEO_PARSE_THINKING
+    ),
+    videoParseTimeoutMs: (() => {
+      const n = Number(process.env.LLM_VIDEO_PARSE_TIMEOUT_MS);
+      if (!Number.isFinite(n)) return undefined;
+      return Math.min(300_000, Math.max(10_000, n));
+    })(),
   };
 }
 

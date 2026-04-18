@@ -232,6 +232,30 @@ export default function ReportPage() {
         </motion.div>
       ) : null}
 
+      {report.suggestions && report.suggestions.length > 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.26 }}
+          className={`${glassPanel} p-5`}
+        >
+          <h3 className="font-display text-sm text-dojo-accent">改进建议</h3>
+          <ul className="mt-3 space-y-3">
+            {report.suggestions.map((line, i) => (
+              <motion.li
+                key={i}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.32 + i * 0.05 }}
+                className="border-l-2 border-dojo-accent/45 pl-3 text-sm leading-relaxed text-dojo-text/90"
+              >
+                {line}
+              </motion.li>
+            ))}
+          </ul>
+        </motion.div>
+      ) : null}
+
       <div className="flex flex-col gap-3 sm:flex-row">
         <motion.button
           type="button"
