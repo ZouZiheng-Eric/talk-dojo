@@ -19,10 +19,10 @@ const ICON_THEME = "text-dojo-accent";
  * 首页四宫格按钮 1–4 的跳转地址（可分别改成不同聊天/训练路由）
  * 顺序：左上 → 右上 → 左下 → 右下
  */
-const HOME_CHAT_HREF_BUTTON_1 = "/train";
-const HOME_CHAT_HREF_BUTTON_2 = "/train";
-const HOME_CHAT_HREF_BUTTON_3 = "/train";
-const HOME_CHAT_HREF_BUTTON_4 = "/train";
+const HOME_CHAT_HREF_BUTTON_1 = "/scene?scene=boss";
+const HOME_CHAT_HREF_BUTTON_2 = "/scene?scene=roommate";
+const HOME_CHAT_HREF_BUTTON_3 = "/scene?scene=relative";
+const HOME_CHAT_HREF_BUTTON_4 = "/scene?scene=racist";
 
 function IconBossMentor(props: SVGProps<SVGSVGElement>) {
   return (
@@ -147,13 +147,13 @@ export default function HomePage() {
   const confirmAuthorityChoice = (value: HomeStoredAuthorityChoice) => {
     sessionStorage.setItem(HOME_STORED_AUTHORITY_CHOICE_KEY, value);
     setRolePicker(null);
-    router.push(HOME_CHAT_HREF_BUTTON_1);
+    router.push(`/scene?scene=boss&opponent=${encodeURIComponent(value)}`);
   };
 
   const confirmPeerChoice = (value: HomeStoredPeerChoice) => {
     sessionStorage.setItem(HOME_STORED_PEER_CHOICE_KEY, value);
     setRolePicker(null);
-    router.push(HOME_CHAT_HREF_BUTTON_2);
+    router.push(`/scene?scene=roommate&opponent=${encodeURIComponent(value)}`);
   };
 
   return (
