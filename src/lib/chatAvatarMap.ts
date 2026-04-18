@@ -17,7 +17,7 @@ export const CHAT_PROFILE_FILES = {
   boss: "老板.jpg",
   mentor: "导师.jpg",
   classmate: "同学.jpg",
-  roommate: "室友.jpg",
+  colleague: "同事.jpg",
   relative: "烦人亲戚.jpg",
   racist: "海外racist.jpg",
   /** 「我」气泡右侧：用户上传的自定义头像 */
@@ -41,7 +41,9 @@ export function parsePeerFromSearch(
   params: ReadonlyURLSearchParams | URLSearchParams
 ): HomeStoredPeerChoice | null {
   const p = params.get(CHAT_AVATAR_QUERY.peer);
-  return p === "classmate" || p === "roommate" ? p : null;
+  if (p === "classmate") return "classmate";
+  if (p === "colleague" || p === "roommate") return "colleague";
+  return null;
 }
 
 /**
@@ -58,9 +60,9 @@ export function coachProfileFilename(
       ? CHAT_PROFILE_FILES.mentor
       : CHAT_PROFILE_FILES.boss;
   }
-  if (s === "roommate") {
-    return peer === "roommate"
-      ? CHAT_PROFILE_FILES.roommate
+  if (s === "colleague" || s === "roommate") {
+    return peer === "colleague"
+      ? CHAT_PROFILE_FILES.colleague
       : CHAT_PROFILE_FILES.classmate;
   }
   if (s === "relative") return CHAT_PROFILE_FILES.relative;
@@ -114,7 +116,9 @@ export function readPeerFromSession(): HomeStoredPeerChoice | null {
   if (typeof window === "undefined") return null;
   try {
     const p = sessionStorage.getItem(HOME_STORED_PEER_CHOICE_KEY);
-    return p === "classmate" || p === "roommate" ? p : null;
+    if (p === "classmate") return "classmate";
+    if (p === "colleague" || p === "roommate") return "colleague";
+    return null;
   } catch {
     return null;
   }

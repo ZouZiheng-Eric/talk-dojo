@@ -11,7 +11,8 @@ function SceneRedirectInner() {
   const search = useSearchParams();
 
   useEffect(() => {
-    const scene = search.get("scene") || "boss";
+    const sceneRaw = search.get("scene") || "boss";
+    const scene = sceneRaw === "roommate" ? "colleague" : sceneRaw;
     const q = new URLSearchParams();
     q.set("scene", scene);
     const opponent = search.get("opponent")?.trim();
@@ -21,8 +22,10 @@ function SceneRedirectInner() {
       q.set("authority", authority);
     }
     const peer = search.get("peer");
-    if (peer === "classmate" || peer === "roommate") {
-      q.set("peer", peer);
+    if (peer === "classmate") {
+      q.set("peer", "classmate");
+    } else if (peer === "colleague" || peer === "roommate") {
+      q.set("peer", "colleague");
     }
     router.replace(`/train?${q.toString()}`);
   }, [router, search]);

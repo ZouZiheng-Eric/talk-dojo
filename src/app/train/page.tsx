@@ -37,7 +37,7 @@ import { useSpeechToText } from "@/lib/useSpeechToText";
 
 const SCENE_LABELS: Record<string, string> = {
   boss: "老板/导师",
-  roommate: "同学/室友",
+  colleague: "同学/同事",
   relative: "烦人亲戚",
   racist: "海外 racist",
 };
@@ -47,6 +47,7 @@ const RESERVED_OPPONENT_ROLE_TOKENS = new Set([
   "boss",
   "mentor",
   "classmate",
+  "colleague",
   "roommate",
 ]);
 
@@ -159,7 +160,10 @@ function TrainInner() {
     const u = search.get("url");
     return u ? decodeURIComponent(u) : "";
   }, [search]);
-  const scene = useMemo(() => search.get("scene") || "", [search]);
+  const scene = useMemo(() => {
+    const raw = search.get("scene") || "";
+    return raw === "roommate" ? "colleague" : raw;
+  }, [search]);
   const opponentFromUrl = useMemo(() => {
     const v = search.get("opponent");
     return v ? decodeURIComponent(v) : "";

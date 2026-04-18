@@ -16,7 +16,7 @@ import { CHAT_AVATAR_QUERY } from "@/lib/chatAvatarMap";
 
 /** 仓库根目录同名 PNG，打包为静态资源（与手动维护 public 脱钩） */
 import bossMentorTile from "../../老板导师.png";
-import classmateRoommateTile from "../../同学室友.png";
+import classmateColleagueTile from "../../同学室友.png";
 import overseasRacistTile from "../../海外racist.png";
 
 function staticTileSrc(img: string | StaticImageData): string {
@@ -31,7 +31,7 @@ const ICON_THEME = "text-dojo-accent";
  * 顺序：左上 → 右上 → 左下 → 右下
  */
 const HOME_CHAT_HREF_BUTTON_1 = "/train?scene=boss";
-const HOME_CHAT_HREF_BUTTON_2 = "/train?scene=roommate";
+const HOME_CHAT_HREF_BUTTON_2 = "/train?scene=colleague";
 const HOME_CHAT_HREF_BUTTON_3 = "/train?scene=relative";
 const HOME_CHAT_HREF_BUTTON_4 = "/train?scene=racist";
 
@@ -98,9 +98,9 @@ const HOME_QUICK_GRID: HomeTile[] = [
     pick: "authority",
   },
   {
-    label: "同学/室友",
+    label: "同学/同事",
     href: HOME_CHAT_HREF_BUTTON_2,
-    iconSrc: staticTileSrc(classmateRoommateTile),
+    iconSrc: staticTileSrc(classmateColleagueTile),
     pick: "peer",
   },
   {
@@ -163,7 +163,7 @@ export default function HomePage() {
     sessionStorage.setItem(HOME_STORED_PEER_CHOICE_KEY, value);
     setRolePicker(null);
     router.push(
-      `/train?scene=roommate&${CHAT_AVATAR_QUERY.peer}=${encodeURIComponent(value)}`
+      `/train?scene=colleague&${CHAT_AVATAR_QUERY.peer}=${encodeURIComponent(value)}`
     );
   };
 
@@ -361,9 +361,9 @@ export default function HomePage() {
                     <button
                       type="button"
                       className="rounded-xl bg-dojo-accent py-3.5 text-sm font-semibold text-white shadow-sm active:opacity-90"
-                      onClick={() => confirmPeerChoice("roommate")}
+                      onClick={() => confirmPeerChoice("colleague")}
                     >
-                      室友
+                      同事
                     </button>
                   </div>
                 </>

@@ -16,10 +16,10 @@ const SCENE_PARSE_MAP: Record<string, ParseResult> = {
     contextKeywords: "你到底能不能扛事？别解释，给结论。",
     strategies: ["要结论时先复述对方质疑点再答", "用时间节点代替空头承诺"],
   },
-  roommate: {
-    title: "同学/室友边界冲突",
-    conflict: "对方长期越界占用你的时间和空间",
-    contextKeywords: "大家都这么相处，你怎么这么计较？",
+  colleague: {
+    title: "同学/同事职场边界冲突",
+    conflict: "同事（或搭子）长期越界：甩锅、占用功劳或占用你时间",
+    contextKeywords: "大家一个组的，你这么计较干嘛？",
     strategies: ["把球踢回：谁定规则谁执行", "用具体事实代替情绪控诉"],
   },
   relative: {
@@ -37,7 +37,8 @@ const SCENE_PARSE_MAP: Record<string, ParseResult> = {
 };
 
 export function mockParseFromScene(scene: string, opponentHint?: string): ParseResult {
-  const base = SCENE_PARSE_MAP[scene] ?? SCENE_PARSE_MAP.boss;
+  const key = scene === "roommate" ? "colleague" : scene;
+  const base = SCENE_PARSE_MAP[key] ?? SCENE_PARSE_MAP.boss;
   const hint = opponentHint?.trim();
   if (!hint) return base;
   return {
