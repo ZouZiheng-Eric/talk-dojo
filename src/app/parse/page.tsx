@@ -6,7 +6,10 @@ import { mockParse } from "@/lib/mock";
 import Link from "next/link";
 import { glassPanel, linkPressable } from "@/lib/ui";
 import { writeSessionParse } from "@/lib/sessionParse";
-import { LOCAL_VIDEO_SESSION_URL } from "@/lib/constants";
+import {
+  LOCAL_VIDEO_SESSION_URL,
+  VIDEO_UPLOAD_MAX_MB,
+} from "@/lib/constants";
 import { appendStoredRolesToTrainHref } from "@/lib/chatAvatarMap";
 import { clientConfig } from "@/config/client";
 import type { ParseResult } from "@/lib/types";
@@ -130,7 +133,7 @@ export default function ParsePage() {
           className={`${linkPressable} w-full rounded-xl border border-dojo-line/80 bg-dojo-mist/50 px-4 py-3 text-left text-sm text-dojo-text`}
           onClick={() => fileRef.current?.click()}
         >
-          选择本地视频（建议 mp4，≤ 约 15MB，受部署环境限制）
+          选择本地视频（建议 mp4，小于约 {VIDEO_UPLOAD_MAX_MB} MB，受部署环境限制）
         </button>
       </div>
 

@@ -10,12 +10,11 @@ import {
 import { probeVideoUrlLooksLikeHtmlPage } from "@/lib/videoUrlStreamProbe";
 import type { ChatMessage } from "@/lib/llm/messages";
 import type { ParseResult } from "@/lib/types";
+import { VIDEO_UPLOAD_MAX_BYTES_DEFAULT } from "@/lib/constants";
 
 export const maxDuration = 300;
 
 type JsonBody = { url?: unknown; debug?: unknown };
-
-const DEFAULT_UPLOAD_MAX = 15 * 1024 * 1024;
 
 /** Node / 跨 realm 下 File 不一定通过 instanceof Blob，用结构判断 */
 function isBlobLike(v: unknown): v is Blob {
@@ -293,7 +292,8 @@ async function handleMultipartUpload(req: NextRequest) {
     100 * 1024 * 1024,
     Math.max(
       1024 * 1024,
-      Number(process.env.LLM_VIDEO_UPLOAD_MAX_BYTES) || DEFAULT_UPLOAD_MAX
+      Number(process.env.LLM_VIDEO_UPLOAD_MAX_BYTES) ||
+      VIDEO_UPLOAD_MAX_BYTES_DEFAULT
     )
   );
 
