@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { mockParse } from "@/lib/mock";
 import Link from "next/link";
 import { glassPanel, linkPressable } from "@/lib/ui";
 import { writeSessionParse } from "@/lib/sessionParse";
 import { LOCAL_VIDEO_SESSION_URL } from "@/lib/constants";
+import { appendStoredRolesToTrainHref } from "@/lib/chatAvatarMap";
 import { clientConfig } from "@/config/client";
 import type { ParseResult } from "@/lib/types";
 
@@ -77,7 +78,14 @@ export default function ParsePage() {
     }
   };
 
-  const trainHref = `/train?url=${encodeURIComponent(sessionUrl || LOCAL_VIDEO_SESSION_URL)}`;
+  const [trainHref, setTrainHref] = useState(
+    `/train?url=${encodeURIComponent(sessionUrl || LOCAL_VIDEO_SESSION_URL)}`
+  );
+  useEffect(() => {
+    const base = `/train?url=${encodeURIComponent(sessionUrl || LOCAL_VIDEO_SESSION_URL)}`;
+    setTrainHref(appendStoredRolesToTrainHref(base));
+  }, [sessionUrl]);
+
   const canEnter =
     Boolean(sessionUrl.trim()) && loadState === "ready" && parse;
 

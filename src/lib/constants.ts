@@ -17,3 +17,4 @@ export type HomeStoredAuthorityChoice = "boss" | "mentor";
 
 /** 与 {@link HOME_STORED_PEER_CHOICE_KEY} 对应的取值 */
 export type HomeStoredPeerChoice = "classmate" | "roommate";
+

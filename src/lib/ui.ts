@@ -1,6 +1,6 @@
 /** 复用样式，避免 globals @apply 在部分构建链下异常 */
 export const glassPanel =
-  "rounded-2xl border border-dojo-line bg-dojo-ink shadow-[0_2px_16px_rgba(0,0,0,0.06)]";
+  "rounded-[1.75rem] border border-dojo-line/75 bg-dojo-ink shadow-[0_4px_28px_rgba(0,0,0,0.07)]";
 
 /** 主按钮：Apple 式实色强调 */
 export const btnPrimary =

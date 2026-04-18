@@ -44,7 +44,7 @@ export function RadarBoard({ scores }: Props) {
 
   return (
     <motion.div
-      className={`${glassPanel} h-[280px] w-full overflow-hidden p-2`}
+      className={`${glassPanel} h-[300px] w-full overflow-hidden p-3 sm:h-[340px] sm:p-4`}
       initial={{ opacity: 0, scale: 0.88 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.08 }}

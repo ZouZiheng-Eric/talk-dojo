@@ -61,31 +61,35 @@ export default function ReportPage() {
   const overallTierClass = performanceTierTone(overallTier);
 
   return (
-    <div className="space-y-6 pb-8 pt-2">
+    <div className="space-y-8 pb-4 pt-1 sm:space-y-10">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <p className="text-xs uppercase tracking-[0.2em] text-dojo-accent">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-dojo-accent">
           训练战报
         </p>
-        <h2 className="mt-1 font-display text-2xl text-dojo-gold">本场结算</h2>
+        <h2 className="mt-2 font-display text-[1.65rem] font-semibold leading-tight text-dojo-gold sm:text-3xl">
+          本场结算
+        </h2>
       </motion.div>
 
       <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
+        initial={{ scale: 0.98, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: "spring", stiffness: 200, damping: 22 }}
-        className={`${glassPanel} relative overflow-hidden p-6 text-center`}
+        transition={{ type: "spring", stiffness: 200, damping: 24 }}
+        className={`${glassPanel} relative overflow-hidden px-6 py-8 text-center sm:px-8 sm:py-10`}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-dojo-accent/5 to-transparent" />
-        <p className="relative text-xs text-dojo-muted">综合评级</p>
+        <div className="absolute inset-0 bg-gradient-to-br from-dojo-accent/[0.07] via-transparent to-dojo-cyan/[0.04]" />
+        <p className="relative text-[13px] font-medium text-dojo-muted">
+          综合评级
+        </p>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 280, damping: 24, delay: 0.05 }}
-          className={`relative mt-2 font-display text-4xl font-bold tracking-wide sm:text-5xl ${overallTierClass}`}
+          className={`relative mt-3 font-display text-5xl font-bold tracking-wide sm:text-6xl ${overallTierClass}`}
         >
           {overallTier}
         </motion.p>
@@ -96,7 +100,9 @@ export default function ReportPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <p className="mb-2 text-center text-xs text-dojo-muted">五维雷达</p>
+        <p className="mb-3 text-center text-[13px] font-medium text-dojo-muted">
+          五维雷达
+        </p>
         <RadarBoard scores={report.scores} />
       </motion.div>
 
@@ -104,9 +110,9 @@ export default function ReportPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.18 }}
-        className={`${glassPanel} p-5`}
+        className={`${glassPanel} p-6 sm:p-8`}
       >
-        <h3 className="font-display text-sm text-dojo-gold">金句摘录</h3>
+        <h3 className="font-display text-base text-dojo-gold">金句摘录</h3>
         {report.goldenQuote ? (
           <>
             {report.lineScores && report.lineScores.length > 0 ? (
@@ -135,10 +141,10 @@ export default function ReportPage() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.22 }}
-              className={`rounded-xl border border-dojo-accent/35 bg-dojo-mist/30 px-4 py-3 ${
+              className={`rounded-2xl border border-dojo-accent/30 bg-dojo-mist/40 px-5 py-4 sm:px-6 sm:py-5 ${
                 report.lineScores && report.lineScores.length > 0
-                  ? "mt-4"
-                  : "mt-3"
+                  ? "mt-5"
+                  : "mt-4"
               }`}
             >
               <p
@@ -213,10 +219,10 @@ export default function ReportPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.22 }}
-          className={`${glassPanel} p-5`}
+          className={`${glassPanel} p-6 sm:p-8`}
         >
-          <h3 className="font-display text-sm text-dojo-cyan">AI 锐评</h3>
-          <ul className="mt-3 space-y-3">
+          <h3 className="font-display text-base text-dojo-cyan">AI 锐评</h3>
+          <ul className="mt-4 space-y-4">
             {report.coachNotes.map((line, i) => (
               <motion.li
                 key={i}
@@ -237,10 +243,10 @@ export default function ReportPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.26 }}
-          className={`${glassPanel} p-5`}
+          className={`${glassPanel} p-6 sm:p-8`}
         >
-          <h3 className="font-display text-sm text-dojo-accent">改进建议</h3>
-          <ul className="mt-3 space-y-3">
+          <h3 className="font-display text-base text-dojo-accent">改进建议</h3>
+          <ul className="mt-4 space-y-4">
             {report.suggestions.map((line, i) => (
               <motion.li
                 key={i}
@@ -256,12 +262,12 @@ export default function ReportPage() {
         </motion.div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:gap-4">
         <motion.button
           type="button"
           onClick={favorite}
           disabled={saved}
-          className="flex-1 rounded-xl border border-dojo-line bg-dojo-void py-3.5 text-sm font-medium text-dojo-text transition-colors hover:border-dojo-accent/50 disabled:opacity-60"
+          className="flex-1 rounded-2xl border border-dojo-line bg-dojo-void py-4 text-[15px] font-medium text-dojo-text transition-colors hover:border-dojo-accent/50 disabled:opacity-60 sm:py-3.5"
           whileTap={{ scale: 0.94 }}
           whileHover={{ scale: saved ? 1 : 1.02 }}
           transition={{ type: "spring", stiffness: 480, damping: 26 }}
@@ -270,7 +276,7 @@ export default function ReportPage() {
         </motion.button>
         <Link
           href="/"
-          className={`${linkPressable} flex flex-1 items-center justify-center rounded-xl border border-dojo-line py-3.5 text-center text-sm text-dojo-muted transition-colors hover:border-dojo-accent/40 hover:text-dojo-text`}
+          className={`${linkPressable} flex flex-1 items-center justify-center rounded-2xl border border-dojo-line py-4 text-center text-[15px] text-dojo-muted transition-colors hover:border-dojo-accent/40 hover:text-dojo-text sm:py-3.5`}
         >
           再来一局
         </Link>

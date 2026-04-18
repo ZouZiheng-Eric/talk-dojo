@@ -12,14 +12,43 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { mockParse, mockParseFromScene } from "@/lib/mock";
-import { SESSION_REPORT_KEY } from "@/lib/constants";
+import {
+  SESSION_REPORT_KEY,
+  HOME_STORED_AUTHORITY_CHOICE_KEY,
+  HOME_STORED_PEER_CHOICE_KEY,
+  type HomeStoredAuthorityChoice,
+  type HomeStoredPeerChoice,
+} from "@/lib/constants";
 import { readSessionParse } from "@/lib/sessionParse";
-import { buildReportWithOptionalAi } from "@/lib/report";
-import type { ParseResult, TrainingRound } from "@/lib/types";
-import { inputField } from "@/lib/ui";
+import {
+  parseAuthorityFromSearch,
+  parsePeerFromSearch,
+  readAuthorityFromSession,
+  readPeerFromSession,
+  resolveCoachAvatar,
+  resolveUserAvatar,
+} from "@/lib/chatAvatarMap";
+import { buildReport, buildReportWithOptionalAi } from "@/lib/report";
+import type { BattleReport, ParseResult, TrainingRound } from "@/lib/types";
+import { btnPrimary, glassPanel, inputField, linkPressable } from "@/lib/ui";
 import { fetchCoachLine } from "@/lib/llm/client";
 import { useToast } from "@/components/ToastProvider";
 import { useSpeechToText } from "@/lib/useSpeechToText";
+
+const SCENE_LABELS: Record<string, string> = {
+  boss: "老板/导师",
+  roommate: "同学/室友",
+  relative: "烦人亲戚",
+  racist: "海外 racist",
+};
+
+/** 首页曾错误把角色枚举塞进 `opponent=`，不作为「对方特征」文案 */
+const RESERVED_OPPONENT_ROLE_TOKENS = new Set([
+  "boss",
+  "mentor",
+  "classmate",
+  "roommate",
+]);
 
 /** 每轮轮换，避免「生成台词中」重复 */
 const COACH_LOADING_PHRASES = [
@@ -31,10 +60,42 @@ const COACH_LOADING_PHRASES = [
   "排练抬杠中",
 ] as const;
 
-function ChatAvatar({ children }: { children: ReactNode }) {
+function ChatAvatarImage({
+  primarySrc,
+  secondarySrc,
+  fallbackText,
+}: {
+  primarySrc: string;
+  secondarySrc?: string;
+  fallbackText: string;
+}) {
+  const [phase, setPhase] = useState<"primary" | "secondary" | "broken">(
+    "primary"
+  );
+  const activeSrc =
+    phase === "secondary" && secondarySrc ? secondarySrc : primarySrc;
+  if (phase === "broken") {
+    return (
+      <div
+        className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md bg-[#e5e5ea] text-[13px] font-semibold text-[#1d1d1f]"
+        aria-hidden
+      >
+        {fallbackText}
+      </div>
+    );
+  }
   return (
-    <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md bg-[#e5e5ea] text-[13px] font-semibold text-[#1d1d1f]">
-      {children}
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-[#e5e5ea] ring-1 ring-black/[0.08]">
+      <img
+        key={activeSrc}
+        src={activeSrc}
+        alt=""
+        className="h-full w-full object-cover object-top"
+        onError={() => {
+          if (phase === "primary" && secondarySrc) setPhase("secondary");
+          else setPhase("broken");
+        }}
+      />
     </div>
   );
 }
@@ -67,20 +128,44 @@ function UserBubble({ children }: { children: ReactNode }) {
   );
 }
 
-function CoachRow({ children }: { children: ReactNode }) {
+function CoachRow({
+  children,
+  avatarPrimary,
+  avatarSecondary,
+}: {
+  children: ReactNode;
+  avatarPrimary: string;
+  avatarSecondary?: string;
+}) {
   return (
     <div className="flex items-start gap-2">
-      <ChatAvatar>教</ChatAvatar>
+      <ChatAvatarImage
+        primarySrc={avatarPrimary}
+        secondarySrc={avatarSecondary}
+        fallbackText="教"
+      />
       <CoachBubble>{children}</CoachBubble>
     </div>
   );
 }
 
-function UserRow({ children }: { children: ReactNode }) {
+function UserRow({
+  children,
+  avatarPrimary,
+  avatarSecondary,
+}: {
+  children: ReactNode;
+  avatarPrimary: string;
+  avatarSecondary?: string;
+}) {
   return (
     <div className="flex items-start justify-end gap-2">
       <UserBubble>{children}</UserBubble>
-      <ChatAvatar>我</ChatAvatar>
+      <ChatAvatarImage
+        primarySrc={avatarPrimary}
+        secondarySrc={avatarSecondary}
+        fallbackText="我"
+      />
     </div>
   );
 }
@@ -93,18 +178,75 @@ function TrainInner() {
     return u ? decodeURIComponent(u) : "";
   }, [search]);
   const scene = useMemo(() => search.get("scene") || "", [search]);
-  const opponent = useMemo(() => {
+  const opponentFromUrl = useMemo(() => {
     const v = search.get("opponent");
     return v ? decodeURIComponent(v) : "";
   }, [search]);
 
+  const authorityFromQuery = useMemo(
+    () => parseAuthorityFromSearch(search),
+    [search]
+  );
+  const peerFromQuery = useMemo(() => parsePeerFromSearch(search), [search]);
+
+  const [homeAuthority, setHomeAuthority] =
+    useState<HomeStoredAuthorityChoice | null>(readAuthorityFromSession);
+  const [homePeer, setHomePeer] = useState<HomeStoredPeerChoice | null>(
+    readPeerFromSession
+  );
+
+  /** URL 优先（可分享、刷新保留），并回写 sessionStorage 与首页逻辑对齐 */
+  useEffect(() => {
+    const aQ = authorityFromQuery;
+    const pQ = peerFromQuery;
+    try {
+      if (aQ) {
+        sessionStorage.setItem(HOME_STORED_AUTHORITY_CHOICE_KEY, aQ);
+        setHomeAuthority(aQ);
+      } else {
+        setHomeAuthority(readAuthorityFromSession());
+      }
+      if (pQ) {
+        sessionStorage.setItem(HOME_STORED_PEER_CHOICE_KEY, pQ);
+        setHomePeer(pQ);
+      } else {
+        setHomePeer(readPeerFromSession());
+      }
+    } catch {
+      setHomeAuthority(aQ ?? readAuthorityFromSession());
+      setHomePeer(pQ ?? readPeerFromSession());
+    }
+  }, [authorityFromQuery, peerFromQuery]);
+
+  const coachAvatar = useMemo(
+    () => resolveCoachAvatar(scene, homeAuthority, homePeer),
+    [scene, homeAuthority, homePeer]
+  );
+  const userAvatar = useMemo(
+    () => resolveUserAvatar(scene, homePeer),
+    [scene, homePeer]
+  );
+
+  /** 对应「场景设置」里补充对方特征；语音按住说话写入此处，并与 URL 初始值衔接。 */
+  const [opponentHint, setOpponentHint] = useState("");
+  const opponentHintRef = useRef("");
+  useEffect(() => {
+    opponentHintRef.current = opponentHint;
+  }, [opponentHint]);
+  useEffect(() => {
+    const raw = opponentFromUrl.trim();
+    if (RESERVED_OPPONENT_ROLE_TOKENS.has(raw)) setOpponentHint("");
+    else setOpponentHint(opponentFromUrl);
+  }, [opponentFromUrl]);
+
+  /** 会话/场景解析结果（不含语音里临时改动的对方特征，避免与 parseEffective 重复拼接） */
   const [parse, setParse] = useState<ParseResult>(() =>
-    scene ? mockParseFromScene(scene, opponent) : mockParse(url)
+    scene ? mockParseFromScene(scene) : mockParse(url)
   );
 
   useEffect(() => {
     if (scene) {
-      setParse(mockParseFromScene(scene, opponent));
+      setParse(mockParseFromScene(scene));
       return;
     }
     if (url) {
@@ -114,18 +256,32 @@ function TrainInner() {
     } else {
       setParse(mockParse(""));
     }
-  }, [scene, opponent, url]);
+  }, [scene, url]);
+
+  /** 教练与战报：在解析结果上叠加当前对方特征描述 */
+  const parseEffective = useMemo(() => {
+    const h = opponentHint.trim();
+    if (!h) return parse;
+    return {
+      ...parse,
+      contextKeywords: `${parse.contextKeywords}（对方特征：${h}）`,
+    };
+  }, [parse, opponentHint]);
   const contextSource = useMemo(() => {
     if (url) return url;
     if (!scene) return "";
-    const q = opponent ? `?opponent=${encodeURIComponent(opponent)}` : "";
+    const h = opponentHint.trim();
+    const q = h ? `?opponent=${encodeURIComponent(h)}` : "";
     return `scene://${scene}${q}`;
-  }, [opponent, scene, url]);
+  }, [opponentHint, scene, url]);
+  const [prepareMode, setPrepareMode] = useState<"voice" | "opponent" | "chat">(
+    "voice"
+  );
   const [roundIndex, setRoundIndex] = useState(0);
   const [rounds, setRounds] = useState<TrainingRound[]>([]);
   const [draft, setDraft] = useState("");
   const [pendingAi, setPendingAi] = useState("");
-  const [aiLoading, setAiLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
   const [aiMessagePulse, setAiMessagePulse] = useState(0);
   const draftRef = useRef("");
   useEffect(() => {
@@ -138,12 +294,48 @@ function TrainInner() {
     onText: useCallback((t: string) => setDraft(t), []),
     onError: useCallback((m: string) => showToast(m), [showToast]),
   });
+  const prepSpeech = useSpeechToText({
+    lang: "zh-CN",
+    getPrefix: useCallback(() => opponentHintRef.current, []),
+    onText: useCallback((t: string) => setOpponentHint(t), []),
+    onError: useCallback((m: string) => showToast(m), [showToast]),
+  });
   const speechMicBlocked = aiLoading || !pendingAi;
   const isDone = roundIndex >= 3;
   const coachLoadingPhrase =
     COACH_LOADING_PHRASES[roundIndex % COACH_LOADING_PHRASES.length];
 
+  /** 战报已生成并写入 sessionStorage；同时保留内存副本 */
+  const [reportReady, setReportReady] = useState(false);
+  const [builtReport, setBuiltReport] = useState<BattleReport | null>(null);
+  const navigateToReportRef = useRef(false);
+
+  const goToReport = useCallback(() => {
+    if (navigateToReportRef.current) return;
+    navigateToReportRef.current = true;
+    router.replace("/report");
+  }, [router]);
+
+  /** 语音页点主按钮：不描述，直接进入对话 */
+  const skipVoiceToChat = useCallback(() => {
+    prepSpeech.stop();
+    speech.stop();
+    setPrepareMode("chat");
+  }, [prepSpeech, speech]);
+
+  /** 语音页点键盘：先进入「补充对方特征」（有 scene 时）；纯视频链入则直接进入对话 */
+  const openKeyboardSupplement = useCallback(() => {
+    prepSpeech.stop();
+    if (scene) setPrepareMode("opponent");
+    else setPrepareMode("chat");
+  }, [prepSpeech, scene]);
+
+  const confirmOpponentAndEnterChat = useCallback(() => {
+    setPrepareMode("chat");
+  }, []);
+
   useEffect(() => {
+    if (prepareMode !== "chat") return;
     if (roundIndex >= 3) return;
     if (rounds.length !== roundIndex) return;
 
@@ -151,36 +343,58 @@ function TrainInner() {
     setAiLoading(true);
     setPendingAi("");
 
-    fetchCoachLine(parse, rounds, roundIndex).then(({ text }) => {
+    fetchCoachLine(parseEffective, rounds, roundIndex).then(({ text }) => {
       if (cancelled) return;
       setPendingAi(text);
       setAiLoading(false);
       setAiMessagePulse((n) => n + 1);
-      // 设备支持时给一个很短的触觉反馈，接近 IM 新消息到达感受
-      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate(18);
-      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [roundIndex, rounds, parse]);
+  }, [prepareMode, roundIndex, rounds, parseEffective]);
 
-  /** 评分：仅 await LLM；与下方怒气条 CSS 动画并行，互不阻塞、互不依赖 */
+  /** 评分：仅 await LLM */
   useEffect(() => {
     if (!isDone) return;
+    setReportReady(false);
+    setBuiltReport(null);
+    navigateToReportRef.current = false;
     let cancelled = false;
     (async () => {
-      const report = await buildReportWithOptionalAi(contextSource, parse, rounds);
-      if (cancelled) return;
-      sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify(report));
-      router.replace("/report");
+      try {
+        const report = await buildReportWithOptionalAi(
+          contextSource,
+          parseEffective,
+          rounds
+        );
+        if (cancelled) return;
+        sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify(report));
+        setBuiltReport(report);
+      } catch {
+        if (cancelled) return;
+        const fallback = buildReport(
+          contextSource,
+          parseEffective,
+          rounds
+        );
+        sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify(fallback));
+        setBuiltReport(fallback);
+      } finally {
+        if (!cancelled) setReportReady(true);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [contextSource, isDone, parse, rounds, router]);
+  }, [contextSource, isDone, parseEffective, rounds]);
+
+  /** 战报就绪后进入结算页（不再播放图片/GIF/视频类胜利动画） */
+  useEffect(() => {
+    if (!isDone || !reportReady || !builtReport) return;
+    goToReport();
+  }, [isDone, reportReady, builtReport, goToReport]);
 
   const submitRound = () => {
     const text = draft.trim();
@@ -195,9 +409,175 @@ function TrainInner() {
     setRoundIndex((i) => i + 1);
   };
 
+  if (prepareMode === "voice") {
+    return (
+      <div className="flex min-h-[calc(100dvh-100px)] flex-col bg-transparent pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 text-dojo-text">
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 space-y-2.5 pl-1 pr-1 pt-6 sm:pl-2">
+          <p className="text-[19px] font-semibold leading-relaxed text-dojo-accent">
+            在开始之前，聊一句？
+          </p>
+          <p className="text-[15px] leading-relaxed text-dojo-text/90">
+            对方是什么特征，发生了什么事？
+          </p>
+          <p className="text-[13px] leading-relaxed text-dojo-muted">
+            越具体，AI 模拟得越真实
+          </p>
+        </div>
+
+        <div className="relative mt-2 flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col items-center justify-center px-1 py-6">
+            <div
+              role="button"
+              tabIndex={0}
+              className={`flex h-[7.25rem] w-[7.25rem] touch-none select-none items-center justify-center rounded-full bg-dojo-accent text-white shadow-[0_8px_28px_rgba(13,148,136,0.42)] transition-transform active:scale-[0.96] ${
+                prepSpeech.listening ? "ring-4 ring-dojo-accent/35" : ""
+              }`}
+              onPointerDown={(e) => {
+                if (!prepSpeech.supported) {
+                  showToast(
+                    "当前环境不支持按住说话。可点右下角键盘改用打字；或使用 Chrome 桌面端。"
+                  );
+                  return;
+                }
+                try {
+                  (e.currentTarget as HTMLDivElement).setPointerCapture(
+                    e.pointerId
+                  );
+                } catch {
+                  /* noop */
+                }
+                prepSpeech.start();
+              }}
+              onPointerUp={(e) => {
+                prepSpeech.stop();
+                try {
+                  (e.currentTarget as HTMLDivElement).releasePointerCapture(
+                    e.pointerId
+                  );
+                } catch {
+                  /* noop */
+                }
+              }}
+              onPointerCancel={() => {
+                prepSpeech.stop();
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="40"
+                height="40"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V20H8v2h8v-2h-3v-2.08A7 7 0 0 0 19 11h-2Z" />
+              </svg>
+            </div>
+            <p className="mt-6 max-w-[17rem] text-center text-[13px] leading-snug text-dojo-muted">
+              按住说话 · 也可以切换打字
+            </p>
+          </div>
+
+          <button
+            type="button"
+            aria-label="用键盘补充对方特征后进入对话"
+            className="absolute bottom-2 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-dojo-ink/90 text-dojo-text shadow-md ring-1 ring-dojo-line/60 backdrop-blur-md transition-colors hover:bg-dojo-mist"
+            onClick={openKeyboardSupplement}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <rect x="4" y="6" width="16" height="12" rx="2" />
+              <path d="M8 10h8M8 14h5" />
+            </svg>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={skipVoiceToChat}
+          className="mt-6 w-full shrink-0 rounded-2xl bg-dojo-coral px-4 py-4 text-left shadow-[0_10px_28px_-6px_rgba(255,59,48,0.35)] transition-opacity active:opacity-95"
+        >
+          <span className="block text-center text-[16px] font-semibold text-white">
+            直接开练 · 不描述了
+          </span>
+          <span className="mt-1 block text-center text-[12px] leading-snug text-white/90">
+            懒得描述？AI 用默认人设直接开整
+          </span>
+        </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (prepareMode === "opponent") {
+    const sceneLabel = SCENE_LABELS[scene] ?? SCENE_LABELS.boss;
+    return (
+      <div className="flex flex-col gap-8 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-2"
+        >
+          <p className="text-xs uppercase tracking-[0.22em] text-dojo-accent">
+            场景设置
+          </p>
+          <h1 className="font-display text-2xl font-semibold text-dojo-text">
+            补充对方特征
+          </h1>
+          <p className="text-sm text-dojo-muted">已选择场景：{sceneLabel}</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.03 }}
+          className={`${glassPanel} space-y-4 p-6 sm:p-7`}
+        >
+          <label className="block text-xs font-medium text-dojo-muted">
+            可选：对方特征
+          </label>
+          <input
+            className={inputField}
+            placeholder="如：强势、爱打断、阴阳怪气"
+            value={opponentHint}
+            onChange={(e) => setOpponentHint(e.target.value)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && confirmOpponentAndEnterChat()
+            }
+          />
+        </motion.div>
+
+        <motion.button
+          type="button"
+          className={`${btnPrimary} w-full`}
+          onClick={confirmOpponentAndEnterChat}
+          whileTap={{ scale: 0.94 }}
+        >
+          进入训练舱
+        </motion.button>
+
+        <button
+          type="button"
+          className={`${linkPressable} text-center text-sm text-dojo-muted`}
+          onClick={() => setPrepareMode("voice")}
+        >
+          返回语音说明
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-[calc(100dvh-120px)] flex-col rounded-2xl bg-[#f2f3f5] p-2 pt-2">
-      <div className="flex-1 space-y-3 overflow-y-auto pb-4">
+    <div className="relative isolate flex min-h-[calc(100dvh-96px)] w-full flex-col overflow-x-hidden rounded-[1.75rem] border border-dojo-line/50 bg-gradient-to-b from-dojo-ink to-dojo-mist/90 p-4 pt-4 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.12)] sm:rounded-[2rem] sm:p-5 sm:pt-5">
+      <div className="relative z-0 flex-1 space-y-4 overflow-y-auto pb-5">
         <AnimatePresence mode="popLayout">
           {rounds.map((r) => (
             <motion.div
@@ -206,8 +586,18 @@ function TrainInner() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-2.5"
             >
-              <CoachRow>{r.aiMessage}</CoachRow>
-              <UserRow>{r.userReply}</UserRow>
+              <CoachRow
+                avatarPrimary={coachAvatar.primary}
+                avatarSecondary={coachAvatar.secondary}
+              >
+                {r.aiMessage}
+              </CoachRow>
+              <UserRow
+                avatarPrimary={userAvatar.primary}
+                avatarSecondary={userAvatar.secondary}
+              >
+                {r.userReply}
+              </UserRow>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -219,15 +609,16 @@ function TrainInner() {
             animate={{
               opacity: 1,
               y: 0,
-              x: aiLoading ? 0 : [0, -2, 2, -1, 1, 0],
             }}
             transition={{
               opacity: { duration: 0.18 },
               y: { duration: 0.18 },
-              x: { duration: 0.28, ease: "easeOut" },
             }}
           >
-            <CoachRow>
+            <CoachRow
+              avatarPrimary={coachAvatar.primary}
+              avatarSecondary={coachAvatar.secondary}
+            >
               {aiLoading ? (
                 <span className="inline-flex items-center gap-1 text-[#6e6e6e]">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent" />
@@ -243,40 +634,16 @@ function TrainInner() {
         )}
 
         {isDone && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="mx-auto w-full max-w-xs space-y-3 px-2 py-6"
-          >
+          <div className="mx-auto w-full max-w-xs px-2 py-6">
             <p className="text-center text-sm text-dojo-muted">生成战报中…</p>
-            <div className="space-y-1.5">
-              <div className="flex items-baseline justify-between gap-2 text-[11px] font-medium uppercase tracking-wide text-dojo-muted">
-                <span>怒气值</span>
-                <span className="tabular-nums normal-case tracking-normal text-[#b45309]">
-                  蓄力中
-                </span>
-              </div>
-              <div
-                className="h-2.5 overflow-hidden rounded-full bg-black/[0.08]"
-                role="progressbar"
-                aria-label="战报生成进度指示"
-                aria-busy="true"
-              >
-                <div
-                  className="h-full w-full origin-left rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-dojo-coral animate-rage-fill motion-reduce:animate-none"
-                  aria-hidden
-                />
-              </div>
-            </div>
-          </motion.div>
+          </div>
         )}
       </div>
 
       {roundIndex < 3 && (
         <motion.div
           layout
-          className="sticky bottom-0 border-t border-dojo-line bg-dojo-ink/95 pb-[max(1rem,var(--safe-bottom))] pt-3 backdrop-blur-lg"
+          className="sticky bottom-0 z-10 -mx-1 rounded-b-[1.65rem] border-t border-dojo-line/70 bg-dojo-ink/92 pb-[max(1rem,var(--safe-bottom))] pt-3.5 backdrop-blur-lg sm:-mx-0 sm:rounded-b-[1.85rem]"
         >
           <div className="flex items-center gap-2">
             <input
@@ -343,6 +710,7 @@ function TrainInner() {
           </div>
         </motion.div>
       )}
+
     </div>
   );
 }

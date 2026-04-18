@@ -116,10 +116,38 @@ export async function postChatCompletion(
   options?: CompletionOptions
 ): Promise<CompletionResult> {
   if (!isLlmConfigured()) {
+    const keyRaw = process.env.LLM_API_KEY;
+    const keyDefined = keyRaw !== undefined;
+    const emptyAfterTrim =
+      keyDefined && String(keyRaw ?? "").trim().length === 0;
+    const notConfiguredMessage = emptyAfterTrim
+      ? "LLM_API_KEY 已声明但值为空（或只有空格）。请在 .env.local 中写入真实密钥，保存后重启 npm run dev；勿留 LLM_API_KEY= 后面为空。"
+      : "Set LLM_API_KEY in .env.local";
+    // #region agent log
+    fetch("http://127.0.0.1:7524/ingest/a4e77efa-2ce8-4692-b03f-67338b987267", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "5b01e5",
+      },
+      body: JSON.stringify({
+        sessionId: "5b01e5",
+        hypothesisId: "H1",
+        location: "postChatCompletion.ts:!isLlmConfigured",
+        message: "branch LLM_NOT_CONFIGURED",
+        data: {
+          llmApiKeyEnvDefined: keyDefined,
+          trimLen: getLlmServerConfig().apiKey.trim().length,
+          emptyAfterTrim,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     return {
       ok: false,
       code: "LLM_NOT_CONFIGURED",
-      message: "Set LLM_API_KEY in .env.local",
+      message: notConfiguredMessage,
       status: 503,
     };
   }

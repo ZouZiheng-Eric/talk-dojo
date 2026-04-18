@@ -10,7 +10,7 @@ export function normalizeVideoUrlForRequest(raw: string): string {
   return `https://${t.replace(/^\/+/, "")}`;
 }
 
-const VIDEO_PARSE_SYSTEM = `你是「回嘴道场」App 的**视频语境编译器**，只服务于后续「高压对话训练」。
+const VIDEO_PARSE_SYSTEM = `你是「回怼道场」App 的**视频语境编译器**，只服务于后续「高压对话训练」。
 
 【应用背景】
 用户会刷到一条短视频，想在 App 里练习怎么回嘴、扛压、把话怼回去。你的输出会被填进「语境画像」：教练 NPC 会按这里的主题、冲突和**关键词**（JSON 字段 \`contextKeywords\`）来施压、贴标签；**策略数组 strategies** 会在战报结算时帮助对照给建议。
