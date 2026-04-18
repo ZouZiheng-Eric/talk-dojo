@@ -18,10 +18,10 @@ export const CHAT_PROFILE_FILES = {
   mentor: "导师.jpg",
   classmate: "同学.jpg",
   roommate: "室友.jpg",
-  /** 旧素材名；当 `室友.jpg` 缺失时由加载逻辑兜底 */
-  roommateFallback: "同事.jpg",
   relative: "烦人亲戚.jpg",
   racist: "海外racist.jpg",
+  /** 「我」气泡右侧：用户上传的自定义头像 */
+  user: "用户头像.jpg",
 } as const;
 
 const PROFILE_BASE = "/profile";
@@ -69,24 +69,17 @@ export function coachProfileFilename(
 }
 
 /**
- * 「我」气泡右侧头像：同学/室友路线与所选身份一致；其余场景默认同学占位。
+ * 「我」气泡右侧头像：统一使用用户上传的 `用户头像.jpg`（`public/profile/`）。
  */
 export function userProfileFilename(
-  scene: string,
-  peer: HomeStoredPeerChoice | null
+  _scene: string,
+  _peer: HomeStoredPeerChoice | null
 ): string {
-  const s = scene.trim();
-  if (s === "roommate" && peer === "roommate")
-    return CHAT_PROFILE_FILES.roommate;
-  if (s === "roommate" && peer === "classmate")
-    return CHAT_PROFILE_FILES.classmate;
-  return CHAT_PROFILE_FILES.classmate;
+  return CHAT_PROFILE_FILES.user;
 }
 
 export type ResolvedChatAvatar = {
   primary: string;
-  /** 主图 404 时尝试（如 `室友.jpg` 缺失则用 `同事.jpg`） */
-  secondary?: string;
 };
 
 export function resolveCoachAvatar(
@@ -95,28 +88,14 @@ export function resolveCoachAvatar(
   peer: HomeStoredPeerChoice | null
 ): ResolvedChatAvatar {
   const file = coachProfileFilename(scene, authority, peer);
-  const primary = profilePublicUrl(file);
-  if (file === CHAT_PROFILE_FILES.roommate) {
-    return {
-      primary,
-      secondary: profilePublicUrl(CHAT_PROFILE_FILES.roommateFallback),
-    };
-  }
-  return { primary };
+  return { primary: profilePublicUrl(file) };
 }
 
 export function resolveUserAvatar(
   scene: string,
   peer: HomeStoredPeerChoice | null
 ): ResolvedChatAvatar {
-  const file = userProfileFilename(scene, peer);
-  const primary = profilePublicUrl(file);
-  if (file === CHAT_PROFILE_FILES.roommate) {
-    return {
-      primary,
-      secondary: profilePublicUrl(CHAT_PROFILE_FILES.roommateFallback),
-    };
-  }
+  const primary = profilePublicUrl(userProfileFilename(scene, peer));
   return { primary };
 }
 

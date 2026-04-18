@@ -30,7 +30,7 @@ import {
 } from "@/lib/chatAvatarMap";
 import { buildReport, buildReportWithOptionalAi } from "@/lib/report";
 import type { BattleReport, ParseResult, TrainingRound } from "@/lib/types";
-import { btnPrimary, glassPanel, inputField, linkPressable } from "@/lib/ui";
+import { btnPrimary, glassPanel, inputField } from "@/lib/ui";
 import { fetchCoachLine } from "@/lib/llm/client";
 import { useToast } from "@/components/ToastProvider";
 import { useSpeechToText } from "@/lib/useSpeechToText";
@@ -61,20 +61,17 @@ const COACH_LOADING_PHRASES = [
 ] as const;
 
 function ChatAvatarImage({
-  primarySrc,
-  secondarySrc,
+  src,
   fallbackText,
 }: {
-  primarySrc: string;
-  secondarySrc?: string;
+  src: string;
   fallbackText: string;
 }) {
-  const [phase, setPhase] = useState<"primary" | "secondary" | "broken">(
-    "primary"
-  );
-  const activeSrc =
-    phase === "secondary" && secondarySrc ? secondarySrc : primarySrc;
-  if (phase === "broken") {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => {
+    setBroken(false);
+  }, [src]);
+  if (broken) {
     return (
       <div
         className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md bg-[#e5e5ea] text-[13px] font-semibold text-[#1d1d1f]"
@@ -87,14 +84,11 @@ function ChatAvatarImage({
   return (
     <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-[#e5e5ea] ring-1 ring-black/[0.08]">
       <img
-        key={activeSrc}
-        src={activeSrc}
+        key={src}
+        src={src}
         alt=""
         className="h-full w-full object-cover object-top"
-        onError={() => {
-          if (phase === "primary" && secondarySrc) setPhase("secondary");
-          else setPhase("broken");
-        }}
+        onError={() => setBroken(true)}
       />
     </div>
   );
@@ -130,20 +124,14 @@ function UserBubble({ children }: { children: ReactNode }) {
 
 function CoachRow({
   children,
-  avatarPrimary,
-  avatarSecondary,
+  avatarSrc,
 }: {
   children: ReactNode;
-  avatarPrimary: string;
-  avatarSecondary?: string;
+  avatarSrc: string;
 }) {
   return (
     <div className="flex items-start gap-2">
-      <ChatAvatarImage
-        primarySrc={avatarPrimary}
-        secondarySrc={avatarSecondary}
-        fallbackText="教"
-      />
+      <ChatAvatarImage src={avatarSrc} fallbackText="教" />
       <CoachBubble>{children}</CoachBubble>
     </div>
   );
@@ -151,21 +139,15 @@ function CoachRow({
 
 function UserRow({
   children,
-  avatarPrimary,
-  avatarSecondary,
+  avatarSrc,
 }: {
   children: ReactNode;
-  avatarPrimary: string;
-  avatarSecondary?: string;
+  avatarSrc: string;
 }) {
   return (
     <div className="flex items-start justify-end gap-2">
       <UserBubble>{children}</UserBubble>
-      <ChatAvatarImage
-        primarySrc={avatarPrimary}
-        secondarySrc={avatarSecondary}
-        fallbackText="我"
-      />
+      <ChatAvatarImage src={avatarSrc} fallbackText="我" />
     </div>
   );
 }
@@ -274,9 +256,8 @@ function TrainInner() {
     const q = h ? `?opponent=${encodeURIComponent(h)}` : "";
     return `scene://${scene}${q}`;
   }, [opponentHint, scene, url]);
-  const [prepareMode, setPrepareMode] = useState<"voice" | "opponent" | "chat">(
-    "voice"
-  );
+  /** false：准备页（对方特征：打字 + 按住说话同一框）；true：进入多轮对话 */
+  const [trainingStarted, setTrainingStarted] = useState(false);
   const [roundIndex, setRoundIndex] = useState(0);
   const [rounds, setRounds] = useState<TrainingRound[]>([]);
   const [draft, setDraft] = useState("");
@@ -316,26 +297,14 @@ function TrainInner() {
     router.replace("/report");
   }, [router]);
 
-  /** 语音页点主按钮：不描述，直接进入对话 */
-  const skipVoiceToChat = useCallback(() => {
+  const startTraining = useCallback(() => {
     prepSpeech.stop();
     speech.stop();
-    setPrepareMode("chat");
+    setTrainingStarted(true);
   }, [prepSpeech, speech]);
 
-  /** 语音页点键盘：先进入「补充对方特征」（有 scene 时）；纯视频链入则直接进入对话 */
-  const openKeyboardSupplement = useCallback(() => {
-    prepSpeech.stop();
-    if (scene) setPrepareMode("opponent");
-    else setPrepareMode("chat");
-  }, [prepSpeech, scene]);
-
-  const confirmOpponentAndEnterChat = useCallback(() => {
-    setPrepareMode("chat");
-  }, []);
-
   useEffect(() => {
-    if (prepareMode !== "chat") return;
+    if (!trainingStarted) return;
     if (roundIndex >= 3) return;
     if (rounds.length !== roundIndex) return;
 
@@ -353,7 +322,7 @@ function TrainInner() {
     return () => {
       cancelled = true;
     };
-  }, [prepareMode, roundIndex, rounds, parseEffective]);
+  }, [trainingStarted, roundIndex, rounds, parseEffective]);
 
   /** 评分：仅 await LLM */
   useEffect(() => {
@@ -409,168 +378,119 @@ function TrainInner() {
     setRoundIndex((i) => i + 1);
   };
 
-  if (prepareMode === "voice") {
+  if (!trainingStarted) {
+    const sceneLabel = SCENE_LABELS[scene] ?? SCENE_LABELS.boss;
     return (
       <div className="flex min-h-[calc(100dvh-100px)] flex-col bg-transparent pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 text-dojo-text">
         <div className="relative z-10 flex min-h-0 flex-1 flex-col">
-        <div className="shrink-0 space-y-2.5 pl-1 pr-1 pt-6 sm:pl-2">
-          <p className="text-[19px] font-semibold leading-relaxed text-dojo-accent">
-            在开始之前，聊一句？
-          </p>
-          <p className="text-[15px] leading-relaxed text-dojo-text/90">
-            对方是什么特征，发生了什么事？
-          </p>
-          <p className="text-[13px] leading-relaxed text-dojo-muted">
-            越具体，AI 模拟得越真实
-          </p>
-        </div>
-
-        <div className="relative mt-2 flex min-h-0 flex-1 flex-col">
-          <div className="flex flex-1 flex-col items-center justify-center px-1 py-6">
-            <div
-              role="button"
-              tabIndex={0}
-              className={`flex h-[7.25rem] w-[7.25rem] touch-none select-none items-center justify-center rounded-full bg-dojo-accent text-white shadow-[0_8px_28px_rgba(13,148,136,0.42)] transition-transform active:scale-[0.96] ${
-                prepSpeech.listening ? "ring-4 ring-dojo-accent/35" : ""
-              }`}
-              onPointerDown={(e) => {
-                if (!prepSpeech.supported) {
-                  showToast(
-                    "当前环境不支持按住说话。可点右下角键盘改用打字；或使用 Chrome 桌面端。"
-                  );
-                  return;
-                }
-                try {
-                  (e.currentTarget as HTMLDivElement).setPointerCapture(
-                    e.pointerId
-                  );
-                } catch {
-                  /* noop */
-                }
-                prepSpeech.start();
-              }}
-              onPointerUp={(e) => {
-                prepSpeech.stop();
-                try {
-                  (e.currentTarget as HTMLDivElement).releasePointerCapture(
-                    e.pointerId
-                  );
-                } catch {
-                  /* noop */
-                }
-              }}
-              onPointerCancel={() => {
-                prepSpeech.stop();
-              }}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="40"
-                height="40"
-                fill="currentColor"
-                aria-hidden
-              >
-                <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V20H8v2h8v-2h-3v-2.08A7 7 0 0 0 19 11h-2Z" />
-              </svg>
-            </div>
-            <p className="mt-6 max-w-[17rem] text-center text-[13px] leading-snug text-dojo-muted">
-              按住说话 · 也可以切换打字
+          <div className="shrink-0 space-y-2.5 pl-1 pr-1 pt-6 sm:pl-2">
+            <p className="text-[19px] font-semibold leading-relaxed text-dojo-accent">
+              在开始之前，聊一句？
             </p>
+            <p className="text-[15px] leading-relaxed text-dojo-text/90">
+              对方是什么特征，发生了什么事？
+            </p>
+            <p className="text-[13px] leading-relaxed text-dojo-muted">
+              越具体，AI 模拟得越真实。可打字，也可按住麦克风说，内容都在同一框里。
+            </p>
+            {scene ? (
+              <p className="text-[13px] text-dojo-muted/90">
+                已选择场景：{sceneLabel}
+              </p>
+            ) : null}
           </div>
 
+          <div className={`${glassPanel} mt-4 space-y-3 p-5 sm:p-6`}>
+            <label
+              className="block text-xs font-medium text-dojo-muted"
+              htmlFor="opponent-hint"
+            >
+              可选：对方特征
+            </label>
+            <textarea
+              id="opponent-hint"
+              rows={5}
+              className={`${inputField} min-h-[7.5rem] resize-y py-3 text-[15px] leading-relaxed`}
+              placeholder="如：强势、爱打断、阴阳怪气。按住下方麦克风时，识别文字会写进这里。"
+              value={opponentHint}
+              onChange={(e) => setOpponentHint(e.target.value)}
+              readOnly={prepSpeech.listening}
+              aria-live="polite"
+            />
+            <div className="flex flex-col items-center pt-1">
+              <div
+                role="button"
+                tabIndex={0}
+                className={`flex h-[6.5rem] w-[6.5rem] touch-none select-none items-center justify-center rounded-full bg-dojo-accent text-white shadow-[0_8px_28px_rgba(13,148,136,0.42)] transition-transform active:scale-[0.96] ${
+                  prepSpeech.listening ? "ring-4 ring-dojo-accent/35" : ""
+                }`}
+                onPointerDown={(e) => {
+                  if (!prepSpeech.supported) {
+                    showToast(
+                      "当前环境不支持按住说话。请直接在上方输入；或使用 Chrome 桌面端。"
+                    );
+                    return;
+                  }
+                  try {
+                    (e.currentTarget as HTMLDivElement).setPointerCapture(
+                      e.pointerId
+                    );
+                  } catch {
+                    /* noop */
+                  }
+                  prepSpeech.start();
+                }}
+                onPointerUp={(e) => {
+                  prepSpeech.stop();
+                  try {
+                    (e.currentTarget as HTMLDivElement).releasePointerCapture(
+                      e.pointerId
+                    );
+                  } catch {
+                    /* noop */
+                  }
+                }}
+                onPointerCancel={() => {
+                  prepSpeech.stop();
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="36"
+                  height="36"
+                  fill="currentColor"
+                  aria-hidden
+                >
+                  <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V20H8v2h8v-2h-3v-2.08A7 7 0 0 0 19 11h-2Z" />
+                </svg>
+              </div>
+              <p className="mt-4 max-w-[18rem] text-center text-[13px] leading-snug text-dojo-muted">
+                按住说话 · 与上方输入同一内容
+              </p>
+            </div>
+          </div>
+
+          <motion.button
+            type="button"
+            className={`${btnPrimary} mt-6 w-full shrink-0`}
+            onClick={startTraining}
+            whileTap={{ scale: 0.98 }}
+          >
+            进入训练舱
+          </motion.button>
           <button
             type="button"
-            aria-label="用键盘补充对方特征后进入对话"
-            className="absolute bottom-2 right-0 flex h-12 w-12 items-center justify-center rounded-full bg-dojo-ink/90 text-dojo-text shadow-md ring-1 ring-dojo-line/60 backdrop-blur-md transition-colors hover:bg-dojo-mist"
-            onClick={openKeyboardSupplement}
+            onClick={startTraining}
+            className="mt-3 w-full shrink-0 rounded-2xl bg-dojo-coral px-4 py-4 text-left shadow-[0_10px_28px_-6px_rgba(255,59,48,0.35)] transition-opacity active:opacity-95"
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              aria-hidden
-            >
-              <rect x="4" y="6" width="16" height="12" rx="2" />
-              <path d="M8 10h8M8 14h5" />
-            </svg>
+            <span className="block text-center text-[16px] font-semibold text-white">
+              直接开练 · 不描述了
+            </span>
+            <span className="mt-1 block text-center text-[12px] leading-snug text-white/90">
+              懒得描述？AI 用默认人设直接开整
+            </span>
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={skipVoiceToChat}
-          className="mt-6 w-full shrink-0 rounded-2xl bg-dojo-coral px-4 py-4 text-left shadow-[0_10px_28px_-6px_rgba(255,59,48,0.35)] transition-opacity active:opacity-95"
-        >
-          <span className="block text-center text-[16px] font-semibold text-white">
-            直接开练 · 不描述了
-          </span>
-          <span className="mt-1 block text-center text-[12px] leading-snug text-white/90">
-            懒得描述？AI 用默认人设直接开整
-          </span>
-        </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (prepareMode === "opponent") {
-    const sceneLabel = SCENE_LABELS[scene] ?? SCENE_LABELS.boss;
-    return (
-      <div className="flex flex-col gap-8 pt-2">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
-        >
-          <p className="text-xs uppercase tracking-[0.22em] text-dojo-accent">
-            场景设置
-          </p>
-          <h1 className="font-display text-2xl font-semibold text-dojo-text">
-            补充对方特征
-          </h1>
-          <p className="text-sm text-dojo-muted">已选择场景：{sceneLabel}</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.03 }}
-          className={`${glassPanel} space-y-4 p-6 sm:p-7`}
-        >
-          <label className="block text-xs font-medium text-dojo-muted">
-            可选：对方特征
-          </label>
-          <input
-            className={inputField}
-            placeholder="如：强势、爱打断、阴阳怪气"
-            value={opponentHint}
-            onChange={(e) => setOpponentHint(e.target.value)}
-            onKeyDown={(e) =>
-              e.key === "Enter" && confirmOpponentAndEnterChat()
-            }
-          />
-        </motion.div>
-
-        <motion.button
-          type="button"
-          className={`${btnPrimary} w-full`}
-          onClick={confirmOpponentAndEnterChat}
-          whileTap={{ scale: 0.94 }}
-        >
-          进入训练舱
-        </motion.button>
-
-        <button
-          type="button"
-          className={`${linkPressable} text-center text-sm text-dojo-muted`}
-          onClick={() => setPrepareMode("voice")}
-        >
-          返回语音说明
-        </button>
       </div>
     );
   }
@@ -586,16 +506,10 @@ function TrainInner() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-2.5"
             >
-              <CoachRow
-                avatarPrimary={coachAvatar.primary}
-                avatarSecondary={coachAvatar.secondary}
-              >
+              <CoachRow avatarSrc={coachAvatar.primary}>
                 {r.aiMessage}
               </CoachRow>
-              <UserRow
-                avatarPrimary={userAvatar.primary}
-                avatarSecondary={userAvatar.secondary}
-              >
+              <UserRow avatarSrc={userAvatar.primary}>
                 {r.userReply}
               </UserRow>
             </motion.div>
@@ -615,10 +529,7 @@ function TrainInner() {
               y: { duration: 0.18 },
             }}
           >
-            <CoachRow
-              avatarPrimary={coachAvatar.primary}
-              avatarSecondary={coachAvatar.secondary}
-            >
+            <CoachRow avatarSrc={coachAvatar.primary}>
               {aiLoading ? (
                 <span className="inline-flex items-center gap-1 text-[#6e6e6e]">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent" />
@@ -648,13 +559,20 @@ function TrainInner() {
           <div className="flex items-center gap-2">
             <input
               className={`${inputField} flex-1 rounded-full py-2.5 text-[15px]`}
-              placeholder={aiLoading ? "教练在憋台词…" : "输入回复"}
+              placeholder={
+                speech.listening
+                  ? "正在听写…"
+                  : aiLoading
+                    ? "教练在憋台词…"
+                    : "输入回复"
+              }
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) =>
                 e.key === "Enter" && !e.shiftKey && submitRound()
               }
-              disabled={aiLoading || !pendingAi || speech.listening}
+              readOnly={speech.listening}
+              disabled={aiLoading || !pendingAi}
             />
             <motion.button
               type="button"
