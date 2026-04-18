@@ -20,6 +20,16 @@ import { fetchCoachLine } from "@/lib/llm/client";
 import { useToast } from "@/components/ToastProvider";
 import { useSpeechToText } from "@/lib/useSpeechToText";
 
+/** 每轮轮换，避免「生成台词中」重复 */
+const COACH_LOADING_PHRASES = [
+  "教练正在热身",
+  "杠精在组织语言",
+  "对手在酝酿话术",
+  "正在模拟对线",
+  "脑子在转，稍等",
+  "排练抬杠中",
+] as const;
+
 function ChatAvatar({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md bg-[#e5e5ea] text-[13px] font-semibold text-[#1d1d1f]">
@@ -116,6 +126,8 @@ function TrainInner() {
   });
   const speechMicBlocked = aiLoading || !pendingAi;
   const isDone = roundIndex >= 3;
+  const coachLoadingPhrase =
+    COACH_LOADING_PHRASES[roundIndex % COACH_LOADING_PHRASES.length];
 
   useEffect(() => {
     if (roundIndex >= 3) return;
@@ -141,6 +153,7 @@ function TrainInner() {
     };
   }, [roundIndex, rounds, parse]);
 
+  /** 评分：仅 await LLM；与下方怒气条 CSS 动画并行，互不阻塞、互不依赖 */
   useEffect(() => {
     if (!isDone) return;
     let cancelled = false;
@@ -206,7 +219,7 @@ function TrainInner() {
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:150ms]" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:300ms]" />
-                  生成台词中…
+                  {coachLoadingPhrase}
                 </span>
               ) : (
                 pendingAi
@@ -216,13 +229,33 @@ function TrainInner() {
         )}
 
         {isDone && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="py-8 text-center text-sm text-dojo-muted"
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="mx-auto w-full max-w-xs space-y-3 px-2 py-6"
           >
-            生成战报中…
-          </motion.p>
+            <p className="text-center text-sm text-dojo-muted">生成战报中…</p>
+            <div className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-2 text-[11px] font-medium uppercase tracking-wide text-dojo-muted">
+                <span>怒气值</span>
+                <span className="tabular-nums normal-case tracking-normal text-[#b45309]">
+                  蓄力中
+                </span>
+              </div>
+              <div
+                className="h-2.5 overflow-hidden rounded-full bg-black/[0.08]"
+                role="progressbar"
+                aria-label="战报生成进度指示"
+                aria-busy="true"
+              >
+                <div
+                  className="h-full w-full origin-left rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-dojo-coral animate-rage-fill motion-reduce:animate-none"
+                  aria-hidden
+                />
+              </div>
+            </div>
+          </motion.div>
         )}
       </div>
 
@@ -234,7 +267,7 @@ function TrainInner() {
           <div className="flex items-center gap-2">
             <input
               className={`${inputField} flex-1 rounded-full py-2.5 text-[15px]`}
-              placeholder={aiLoading ? "等待教练台词…" : "输入回复"}
+              placeholder={aiLoading ? "教练在憋台词…" : "输入回复"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) =>

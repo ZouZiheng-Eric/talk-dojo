@@ -52,6 +52,8 @@ module.exports = {
         "fade-up": "fadeUp 0.5s ease-out forwards",
         shimmer: "shimmer 2.5s ease-in-out infinite",
         "pulse-soft": "pulseSoft 3s ease-in-out infinite",
+        /** 战报等待：纯展示，与 /api/score 并行、互不等待 */
+        "rage-fill": "rageFill 5s cubic-bezier(0.22, 1, 0.36, 1) forwards",
       },
       keyframes: {
         fadeUp: {
@@ -65,6 +67,10 @@ module.exports = {
         pulseSoft: {
           "0%, 100%": { opacity: "0.6" },
           "50%": { opacity: "1" },
+        },
+        rageFill: {
+          "0%": { transform: "scaleX(0)" },
+          "100%": { transform: "scaleX(1)" },
         },
       },
     },

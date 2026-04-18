@@ -49,11 +49,12 @@ export function sortedTrainingRounds(rounds: TrainingRound[]): TrainingRound[] {
   return [...rounds].sort((a, b) => a.round - b.round);
 }
 
-/** 金句候选：至少这么长才参与「最高分当选」，避免「是」「嗯」靠模型虚高抢金句 */
-const GOLDEN_MIN_CHARS_STRONG = 8;
-const GOLDEN_MIN_CHARS_WEAK = 4;
+/**
+ * 单字几乎不可能是金句，先排除；不参与「先长后短」分段比分的错误逻辑（否则长句会压过 lineScore 更高的短金句）。
+ */
+const GOLDEN_MIN_CHARS = 2;
 
-function pickBestAmongLengthTier(
+function pickBestByLineScore(
   sorted: TrainingRound[],
   byRound: Map<number, number>,
   minLen: number
@@ -91,8 +92,8 @@ function pickBestAmongLengthTier(
 }
 
 /**
- * 根据 AI 返回的每轮金句分，选出得分最高的一句（同分取长回复，再取更早轮次）。
- * 优先在「足够长」的回复里选，避免单字敷衍抢金句。
+ * 根据 AI 返回的每轮 lineScore 选金句：**全局取 lineScore 最高**（在字数门槛内）；
+ * 同分取长回复，再取更早轮次。字数仅过滤超短敷衍，不再让长段覆盖更高分的短句。
  */
 export function pickGoldenQuoteFromLineScores(
   rounds: TrainingRound[],
@@ -110,17 +111,9 @@ export function pickGoldenQuoteFromLineScores(
     byRound.set(r, Math.min(100, Math.max(0, s)));
   }
 
-  const strong = pickBestAmongLengthTier(
-    sorted,
-    byRound,
-    GOLDEN_MIN_CHARS_STRONG
-  );
-  if (strong) return strong;
-
-  const weak = pickBestAmongLengthTier(sorted, byRound, GOLDEN_MIN_CHARS_WEAK);
-  if (weak) return weak;
-
-  return pickBestAmongLengthTier(sorted, byRound, 1);
+  const primary = pickBestByLineScore(sorted, byRound, GOLDEN_MIN_CHARS);
+  if (primary) return primary;
+  return pickBestByLineScore(sorted, byRound, 1);
 }
 
 /** 列表/卡片用摘录（仅截断，不改写内容） */
