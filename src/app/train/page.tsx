@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, Suspense, useEffect } from "react";
+import { useMemo, useState, Suspense, useEffect, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { mockParse } from "@/lib/mock";
@@ -10,6 +10,60 @@ import type { TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
 import { TypewriterText } from "@/components/TypewriterText";
 import { fetchCoachLine } from "@/lib/llm/client";
+
+function ChatAvatar({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-md bg-[#e5e5ea] text-[13px] font-semibold text-[#1d1d1f]">
+      {children}
+    </div>
+  );
+}
+
+function CoachBubble({ children }: { children: ReactNode }) {
+  return (
+    <div className="max-w-[min(100%,20rem)] sm:max-w-[75%]">
+      <div className="relative inline-block rounded-lg bg-chat-bubbleLeft px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000]">
+        <span
+          className="absolute left-[-6px] top-1/2 z-0 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-r-[7px] border-r-chat-bubbleLeft"
+          aria-hidden
+        />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function UserBubble({ children }: { children: ReactNode }) {
+  return (
+    <div className="max-w-[min(100%,20rem)] sm:max-w-[75%]">
+      <div className="relative inline-block rounded-lg bg-chat-bubbleRight px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000]">
+        <span
+          className="absolute right-[-6px] top-1/2 z-0 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-l-[7px] border-l-chat-bubbleRight"
+          aria-hidden
+        />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CoachRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2">
+      <ChatAvatar>教</ChatAvatar>
+      <CoachBubble>{children}</CoachBubble>
+    </div>
+  );
+}
+
+function UserRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start justify-end gap-2">
+      <UserBubble>{children}</UserBubble>
+      <ChatAvatar>我</ChatAvatar>
+    </div>
+  );
+}
 
 function TrainInner() {
   const router = useRouter();
@@ -25,8 +79,6 @@ function TrainInner() {
   const [draft, setDraft] = useState("");
   const [pendingAi, setPendingAi] = useState("");
   const [aiLoading, setAiLoading] = useState(true);
-  const [fromApi, setFromApi] = useState(false);
-
   const isDone = roundIndex >= 3;
 
   useEffect(() => {
@@ -36,12 +88,10 @@ function TrainInner() {
     let cancelled = false;
     setAiLoading(true);
     setPendingAi("");
-    setFromApi(false);
 
-    fetchCoachLine(parse, rounds, roundIndex).then(({ text, fromApi: fa }) => {
+    fetchCoachLine(parse, rounds, roundIndex).then(({ text }) => {
       if (cancelled) return;
       setPendingAi(text);
-      setFromApi(fa);
       setAiLoading(false);
     });
 
@@ -79,30 +129,6 @@ function TrainInner() {
 
   return (
     <div className="flex min-h-[calc(100dvh-120px)] flex-col pt-2">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mb-4 rounded-xl border border-dojo-accent/20 bg-dojo-mist/40 px-3 py-2"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-[10px] text-dojo-muted">语境</p>
-            <p className="font-display text-sm text-dojo-gold">{parse.title}</p>
-          </div>
-          {!aiLoading && roundIndex < 3 ? (
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide ${
-                fromApi
-                  ? "bg-dojo-cyan/15 text-dojo-cyan"
-                  : "bg-dojo-line/50 text-dojo-muted"
-              }`}
-            >
-              {fromApi ? "AI" : "演示"}
-            </span>
-          ) : null}
-        </div>
-      </motion.div>
-
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">
         <AnimatePresence mode="popLayout">
           {rounds.map((r) => (
@@ -110,21 +136,10 @@ function TrainInner() {
               key={r.round}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-2"
+              className="space-y-2.5"
             >
-              <div className="flex justify-start">
-                <div className="max-w-[90%] rounded-2xl rounded-bl-md border border-dojo-line/60 bg-dojo-ink/90 px-4 py-3 text-sm text-dojo-text/95 shadow-lg">
-                  <span className="mb-1 block text-[10px] text-dojo-coral">
-                    第 {r.round} 轮
-                  </span>
-                  {r.aiMessage}
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <div className="max-w-[90%] rounded-2xl rounded-br-md border border-dojo-accent/30 bg-dojo-accent/15 px-4 py-3 text-sm text-dojo-text">
-                  {r.userReply}
-                </div>
-              </div>
+              <CoachRow>{r.aiMessage}</CoachRow>
+              <UserRow>{r.userReply}</UserRow>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -134,14 +149,10 @@ function TrainInner() {
             key={`ai-${roundIndex}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start"
           >
-            <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-dojo-coral/25 bg-gradient-to-br from-dojo-mist/80 to-dojo-ink/90 px-4 py-3 text-sm text-dojo-text shadow-xl">
-              <span className="mb-1 block text-[10px] text-dojo-cyan">
-                第 {roundIndex + 1} / 3 轮
-              </span>
+            <CoachRow>
               {aiLoading ? (
-                <span className="inline-flex items-center gap-1 text-dojo-muted">
+                <span className="inline-flex items-center gap-1 text-[#6e6e6e]">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:150ms]" />
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:300ms]" />
@@ -150,7 +161,7 @@ function TrainInner() {
               ) : (
                 <TypewriterText text={pendingAi} speedMs={26} />
               )}
-            </div>
+            </CoachRow>
           </motion.div>
         )}
 
@@ -168,11 +179,11 @@ function TrainInner() {
       {roundIndex < 3 && (
         <motion.div
           layout
-          className="sticky bottom-0 border-t border-dojo-line/40 bg-dojo-void/95 pb-[max(1rem,var(--safe-bottom))] pt-3 backdrop-blur-lg"
+          className="sticky bottom-0 border-t border-dojo-line bg-dojo-ink/95 pb-[max(1rem,var(--safe-bottom))] pt-3 backdrop-blur-lg"
         >
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <input
-              className={`${inputField} flex-1 text-sm`}
+              className={`${inputField} flex-1 rounded-full py-2.5 text-[15px]`}
               placeholder={aiLoading ? "等待教练台词…" : "输入回复"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -183,10 +194,10 @@ function TrainInner() {
             />
             <motion.button
               type="button"
-              className="shrink-0 rounded-xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-3 text-sm font-semibold text-white shadow-md shadow-dojo-accent/25 ring-1 ring-white/10 disabled:opacity-40"
+              className="shrink-0 rounded-full bg-dojo-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-40"
               onClick={submitRound}
               disabled={!draft.trim() || aiLoading || !pendingAi}
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.94 }}
               whileHover={{ scale: 1.02 }}
               transition={{ type: "spring", stiffness: 500, damping: 24 }}
             >

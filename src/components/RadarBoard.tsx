@@ -51,10 +51,10 @@ export function RadarBoard({ scores }: Props) {
     >
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="52%" outerRadius="72%" data={data}>
-          <PolarGrid stroke="#2a2a3d" />
+          <PolarGrid stroke="#d2d2d7" />
           <PolarAngleAxis
             dataKey="subject"
-            tick={{ fill: "#8a8794", fontSize: 9 }}
+            tick={{ fill: "#86868b", fontSize: 9 }}
           />
           <PolarRadiusAxis
             domain={[0, 100]}
@@ -62,7 +62,7 @@ export function RadarBoard({ scores }: Props) {
             axisLine={false}
           />
           <Tooltip
-            cursor={{ stroke: "#c9a962", strokeOpacity: 0.35 }}
+            cursor={{ stroke: "#0d9488", strokeOpacity: 0.28 }}
             content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const row = payload[0].payload as {
@@ -74,7 +74,7 @@ export function RadarBoard({ scores }: Props) {
                 Number.isFinite(v) ? v : 0
               );
               return (
-                <div className="rounded-lg border border-dojo-line/80 bg-dojo-ink/95 px-3 py-2 text-left text-xs shadow-xl backdrop-blur-sm">
+                <div className="rounded-lg border border-dojo-line bg-dojo-ink px-3 py-2 text-left text-xs shadow-lg">
                   <p className="text-[10px] text-dojo-muted">{row.subject}</p>
                   <p
                     className={`mt-0.5 font-display text-sm font-semibold ${performanceTierTone(tier)}`}
@@ -88,9 +88,9 @@ export function RadarBoard({ scores }: Props) {
           <Radar
             name="档位"
             dataKey="value"
-            stroke="#c9a962"
-            fill="#c9a962"
-            fillOpacity={0.35}
+            stroke="#0d9488"
+            fill="#0d9488"
+            fillOpacity={0.22}
             isAnimationActive
             animationBegin={200}
             animationDuration={1100}

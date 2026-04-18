@@ -8,22 +8,45 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        /** Apple-like light surfaces（对齐 awesome-design-md / Apple 条目） */
         dojo: {
-          void: "#0a0a0f",
-          ink: "#12121a",
-          mist: "#1a1a26",
-          line: "#2a2a3d",
-          accent: "#c9a962",
-          gold: "#e8d5a3",
-          coral: "#e07a5f",
-          cyan: "#7dd3c0",
-          text: "#e8e6e3",
-          muted: "#8a8794",
+          void: "#f5f5f7",
+          ink: "#ffffff",
+          mist: "#fbfbfd",
+          line: "#d2d2d7",
+          /** 与首页青绿→天蓝渐变同一色相链（非纯蓝） */
+          accent: "#0d9488",
+          gold: "#1d1d1f",
+          coral: "#ff3b30",
+          cyan: "#0e7490",
+          text: "#1d1d1f",
+          muted: "#86868b",
+        },
+        chat: {
+          bubbleLeft: "#f3f3f3",
+          bubbleRight: "#95ec69",
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "SF Pro Display",
+          "SF Pro Text",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "SF Pro Text",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
       },
       animation: {
         "fade-up": "fadeUp 0.5s ease-out forwards",

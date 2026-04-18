@@ -46,7 +46,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 380, damping: 28 }}
-              className="pointer-events-none max-w-md rounded-2xl border border-dojo-accent/35 bg-dojo-ink/95 px-5 py-3 text-center text-sm font-medium text-dojo-gold shadow-xl shadow-black/40 backdrop-blur-md"
+              className="pointer-events-none max-w-md rounded-2xl border border-dojo-line bg-dojo-ink px-5 py-3 text-center text-sm font-medium text-dojo-text shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-md"
             >
               {message}
             </motion.div>

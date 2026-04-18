@@ -25,15 +25,15 @@ export function overallToPerformanceTier(overall: number): PerformanceTier {
 export function performanceTierTone(tier: PerformanceTier): string {
   switch (tier) {
     case "夯":
-      return "text-dojo-gold";
+      return "text-[#248a3d]";
     case "顶级":
-      return "text-dojo-cyan";
+      return "text-dojo-accent";
     case "人上人":
       return "text-dojo-text";
     case "NPC":
       return "text-dojo-muted";
     case "拉完了":
     default:
-      return "text-dojo-coral/90";
+      return "text-dojo-coral";
   }
 }

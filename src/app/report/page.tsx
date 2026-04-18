@@ -237,7 +237,7 @@ export default function ReportPage() {
           type="button"
           onClick={favorite}
           disabled={saved}
-          className="flex-1 rounded-xl border border-dojo-accent/40 bg-dojo-mist/50 py-3.5 text-sm font-medium text-dojo-gold transition-colors disabled:opacity-60"
+          className="flex-1 rounded-xl border border-dojo-line bg-dojo-void py-3.5 text-sm font-medium text-dojo-text transition-colors hover:border-dojo-accent/50 disabled:opacity-60"
           whileTap={{ scale: 0.94 }}
           whileHover={{ scale: saved ? 1 : 1.02 }}
           transition={{ type: "spring", stiffness: 480, damping: 26 }}

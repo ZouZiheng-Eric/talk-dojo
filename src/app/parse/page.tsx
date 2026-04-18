@@ -56,7 +56,7 @@ function ParseInner() {
 
       <Link
         href={trainHref}
-        className={`${linkPressable} flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-4 text-center text-base font-semibold text-white no-underline shadow-lg shadow-dojo-accent/30 ring-1 ring-white/15 hover:brightness-105 active:brightness-95`}
+        className={`${linkPressable} flex min-h-14 w-full items-center justify-center rounded-2xl bg-dojo-accent px-4 py-4 text-center text-base font-semibold text-white no-underline shadow-sm hover:opacity-95 active:opacity-90`}
       >
         进入训练
       </Link>
