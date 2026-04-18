@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getLlmServerConfig } from "@/config/server";
 import { postChatCompletion } from "@/lib/llm/server/postChatCompletion";
 import type { ChatMessage } from "@/lib/llm/messages";
 
@@ -25,7 +26,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const result = await postChatCompletion(messages);
+  const cfg = getLlmServerConfig();
+  const result = await postChatCompletion(messages, {
+    thinkingType: cfg.chatThinkingType ?? cfg.thinkingType,
+  });
 
   if (!result.ok) {
     return NextResponse.json(

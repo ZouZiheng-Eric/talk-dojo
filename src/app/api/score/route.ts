@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isLlmConfigured } from "@/config/server";
+import { getLlmServerConfig, isLlmConfigured } from "@/config/server";
 import { postChatCompletion } from "@/lib/llm/server/postChatCompletion";
 import { buildScoreMessages } from "@/lib/llm/scoreMessages";
 import { parseAiScoreContent } from "@/lib/llm/parseScoreJson";
@@ -78,7 +78,10 @@ export async function POST(req: NextRequest) {
   }
 
   const messages = buildScoreMessages(body.parse, body.rounds);
+  const cfg = getLlmServerConfig();
   const result = await postChatCompletion(messages, {
+    model: cfg.scoreModel,
+    thinkingType: cfg.scoreThinkingType ?? cfg.thinkingType,
     temperature: 0.32,
     maxTokens: 720,
     jsonObject: true,

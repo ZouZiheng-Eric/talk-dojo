@@ -1,7 +1,12 @@
 import { getLlmServerConfig, isLlmConfigured } from "@/config/server";
+import type { LlmThinkingType } from "@/config/server";
 import type { ChatMessage } from "@/lib/llm/messages";
 
 export type CompletionOptions = {
+  /** 覆盖默认模型（用于评分等独立链路） */
+  model?: string;
+  /** 覆盖默认 thinking（用于按任务精细控制） */
+  thinkingType?: LlmThinkingType;
   temperature?: number;
   maxTokens?: number;
   /** OpenAI Chat Completions：json_object（需在 messages 中要求输出 JSON） */
@@ -40,7 +45,7 @@ export async function postChatCompletion(
     options?.maxTokens !== undefined ? options.maxTokens : cfg.maxTokens;
 
   const payload: Record<string, unknown> = {
-    model: cfg.model,
+    model: options?.model?.trim() || cfg.model,
     messages,
     temperature,
     max_tokens,
@@ -48,28 +53,58 @@ export async function postChatCompletion(
   if (options?.jsonObject) {
     payload.response_format = { type: "json_object" };
   }
-  if (cfg.thinkingType) {
-    payload.thinking = { type: cfg.thinkingType };
+  const thinkingType = options?.thinkingType ?? cfg.thinkingType;
+  if (thinkingType) {
+    payload.thinking = { type: thinkingType };
   }
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), cfg.timeoutMs);
 
   try {
-    const upstream = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cfg.apiKey}`,
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
+    const doRequest = async (bodyPayload: Record<string, unknown>) =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cfg.apiKey}`,
+        },
+        body: JSON.stringify(bodyPayload),
+        signal: controller.signal,
+      });
 
-    clearTimeout(t);
+    let upstream = await doRequest(payload);
 
     if (!upstream.ok) {
-      const errText = await upstream.text().catch(() => "");
+      let errText = await upstream.text().catch(() => "");
+      // 部分兼容模型不支持 response_format=json_object，自动降级重试一次
+      const canRetryWithoutJsonObject =
+        options?.jsonObject &&
+        errText.includes("response_format.type") &&
+        errText.includes("json_object");
+      if (canRetryWithoutJsonObject) {
+        const fallbackPayload = { ...payload };
+        delete fallbackPayload.response_format;
+        upstream = await doRequest(fallbackPayload);
+        if (upstream.ok) {
+          const raw = (await upstream.json()) as {
+            choices?: Array<{ message?: { content?: string } }>;
+          };
+          const content = raw.choices?.[0]?.message?.content?.trim() ?? "";
+          clearTimeout(t);
+          if (!content) {
+            return {
+              ok: false,
+              code: "EMPTY",
+              message: "No content in response",
+              status: 502,
+            };
+          }
+          return { ok: true, content };
+        }
+        errText = await upstream.text().catch(() => "");
+      }
+      clearTimeout(t);
       return {
         ok: false,
         code: "UPSTREAM",
@@ -77,6 +112,7 @@ export async function postChatCompletion(
         status: 502,
       };
     }
+    clearTimeout(t);
 
     const raw = (await upstream.json()) as {
       choices?: Array<{ message?: { content?: string } }>;

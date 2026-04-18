@@ -37,11 +37,13 @@ npm run dev:lan
 
 ### 大模型（可选）
 
-1. 复制根目录 `.env.example` 为 `.env.local`，填写 `LLM_API_BASE`、`LLM_API_KEY`、`LLM_MODEL`（与供应商一致：例如 OpenAI 多为 `.../v1`，火山方舟多为 `https://ark.cn-beijing.volces.com/api/v3`；`LLM_MODEL` 须为控制台可用的模型 ID，而非展示名）。
-2. 可选：`LLM_THINKING=disabled`（火山方舟 Seed 等）关闭深度思考以加快响应；OpenAI 等勿设。
-3. 训练页每轮会 `POST /api/chat`，由 Route Handler 转发到 `{LLM_API_BASE}/chat/completions`；未配置密钥或请求失败时自动回退 `src/lib/mock.ts` 的 `PRESSURE_MESSAGES`。
-4. 三轮结束后会 `POST /api/score`：模型输出五维分数、综合分、`coachNotes`，以及每轮用户原话的 `lineScores`（金句分）；服务端选出最高分一句写入 `goldenQuote`（正文仍为用户原话），战报金句区主展示该句。**AI 锐评**单独展示 `coachNotes`。失败或未配置密钥时回退本地评分与多段原话摘录。
-5. 客户端开关：在 `.env.local` 设置 `NEXT_PUBLIC_USE_LLM=false` 可强制仅用 Mock 台词且不请求评分接口。
+1. 复制根目录 `.env.example` 为 `.env.local`，填写 `LLM_API_BASE`、`LLM_API_KEY`、`LLM_MODEL`（与供应商一致：例如 OpenAI 多为 `.../v1`，火山方舟多为 `https://ark.cn-beijing.volces.com/api/v3`；模型值须为控制台可用 ID，而非展示名）。
+2. 可选：`LLM_SCORE_MODEL`（仅 `/api/score` 使用；不填则沿用 `LLM_MODEL`），用于「训练快模型 + 评分强模型」拆分。
+3. thinking 可按任务细分：`LLM_THINKING`（全局默认）、`LLM_CHAT_THINKING`（训练对话）、`LLM_SCORE_THINKING`（评分）；取值 `enabled | disabled | auto`。OpenAI 等不支持时请勿设置。
+4. 训练页每轮会 `POST /api/chat`，由 Route Handler 转发到 `{LLM_API_BASE}/chat/completions`；未配置密钥或请求失败时自动回退 `src/lib/mock.ts` 的 `PRESSURE_MESSAGES`。
+5. 三轮结束后会 `POST /api/score`：模型输出五维分数、综合分、`coachNotes`，以及每轮用户原话的 `lineScores`（金句分）；服务端选出最高分一句写入 `goldenQuote`（正文仍为用户原话），战报金句区主展示该句。**AI 锐评**单独展示 `coachNotes`。失败或未配置密钥时回退本地评分与多段原话摘录。
+6. 评分调用优先请求 `response_format=json_object`；若上游模型不支持，会自动降级重试（去掉 `response_format`，继续按提示词解析 JSON），提升不同兼容模型的可用性。
+7. 客户端开关：在 `.env.local` 设置 `NEXT_PUBLIC_USE_LLM=false` 可强制仅用 Mock 台词且不请求评分接口。
 
 服务端相关环境变量集中在 `src/config/server.ts`（**勿**在客户端组件中 import）；客户端可见配置在 `src/config/client.ts`。
 
