@@ -27,12 +27,21 @@ npm run dev
 
 浏览器访问终端里提示的地址（一般为 `http://localhost:3000`）。
 
+**手机或局域网内其它设备访问开发服**（需与电脑同一 Wi‑Fi、防火墙放行 3000 端口）：
+
+```bash
+npm run dev:lan
+```
+
+电脑用 `ipconfig` 查看 IPv4，手机浏览器打开 `http://<IPv4>:3000`。语音等能力在 **HTTP + 局域网 IP** 下可能被浏览器限制，必要时用 HTTPS 隧道或部署环境测试。
+
 ### 大模型（可选）
 
-1. 复制根目录 `.env.example` 为 `.env.local`，填写 `LLM_API_BASE`（需包含 `/v1`，与供应商文档一致）、`LLM_API_KEY`、`LLM_MODEL`。
-2. 训练页每轮会 `POST /api/chat`，由 Route Handler 转发到 `{LLM_API_BASE}/chat/completions`；未配置密钥或请求失败时自动回退 `src/lib/mock.ts` 的 `PRESSURE_MESSAGES`。
-3. 三轮结束后会 `POST /api/score`：模型输出五维分数、综合分、`coachNotes`，以及每轮用户原话的 `lineScores`（金句分）；服务端选出最高分一句写入 `goldenQuote`（正文仍为用户原话），战报金句区主展示该句。**AI 锐评**单独展示 `coachNotes`。失败或未配置密钥时回退本地评分与多段原话摘录。
-4. 客户端开关：在 `.env.local` 设置 `NEXT_PUBLIC_USE_LLM=false` 可强制仅用 Mock 台词且不请求评分接口。
+1. 复制根目录 `.env.example` 为 `.env.local`，填写 `LLM_API_BASE`、`LLM_API_KEY`、`LLM_MODEL`（与供应商一致：例如 OpenAI 多为 `.../v1`，火山方舟多为 `https://ark.cn-beijing.volces.com/api/v3`；`LLM_MODEL` 须为控制台可用的模型 ID，而非展示名）。
+2. 可选：`LLM_THINKING=disabled`（火山方舟 Seed 等）关闭深度思考以加快响应；OpenAI 等勿设。
+3. 训练页每轮会 `POST /api/chat`，由 Route Handler 转发到 `{LLM_API_BASE}/chat/completions`；未配置密钥或请求失败时自动回退 `src/lib/mock.ts` 的 `PRESSURE_MESSAGES`。
+4. 三轮结束后会 `POST /api/score`：模型输出五维分数、综合分、`coachNotes`，以及每轮用户原话的 `lineScores`（金句分）；服务端选出最高分一句写入 `goldenQuote`（正文仍为用户原话），战报金句区主展示该句。**AI 锐评**单独展示 `coachNotes`。失败或未配置密钥时回退本地评分与多段原话摘录。
+5. 客户端开关：在 `.env.local` 设置 `NEXT_PUBLIC_USE_LLM=false` 可强制仅用 Mock 台词且不请求评分接口。
 
 服务端相关环境变量集中在 `src/config/server.ts`（**勿**在客户端组件中 import）；客户端可见配置在 `src/config/client.ts`。
 
@@ -58,7 +67,8 @@ npm run dev
 
 | 能力 | 实现位置 |
 |------|----------|
-| 路由切换过渡 | `components/PageTransition.tsx`：`AnimatePresence` + `usePathname`，**不使用 `mode="wait"`**，避免与 App Router 换页冲突导致白屏 |
+| 路由换页 | 已去掉全站 `PageTransition` 位移动画，避免主内容上移/下移；`Shell` 直接渲染 `children` |
+| 训练页语音输入 | `lib/useSpeechToText.ts`：Web Speech API（`zh-CN`）；不支持时点击麦克风会 Toast 说明；依赖浏览器与 **HTTPS / localhost** 等安全上下文 |
 | AI 打字机 | `components/TypewriterText.tsx`：训练页**当前轮**教练气泡 |
 | 战报档位 | `lib/performanceTier.ts` |
 | 五维雷达 | `components/RadarBoard.tsx`：Recharts，Tooltip 为档位 |
@@ -66,7 +76,7 @@ npm run dev
 | 主按钮样式 | `lib/ui.ts` 的 `btnPrimary`：金→珊瑚渐变、**白字**、`ring` 描边（避免近黑字在渐变异常时被误认为黑按钮） |
 | 链接按压反馈 | `lib/ui.ts` 的 `linkPressable`：`active:scale-[0.96]` |
 
-`Shell.tsx` 结构：`ToastProvider` → 顶栏 → `<main><PageTransition>{children}</PageTransition></main>`。
+`Shell.tsx` 结构：`ToastProvider` → 顶栏 → `<main>{children}</main>`。
 
 ---
 
@@ -76,11 +86,11 @@ npm run dev
 |------|------|------|
 | `/` | `src/app/page.tsx` | 输入链接，`router.push('/parse?url=...')` |
 | `/parse` | `src/app/parse/page.tsx` | 展示语境画像，进入 `/train?url=...` |
-| `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入，结束后写入战报并 `replace('/report')` |
+| `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入（可选麦克风语音），结束后写入战报并 `replace('/report')` |
 | `/report` | `src/app/report/page.tsx` | 读 `sessionStorage` 展示战报，可收藏 |
 | `/favorites` | `src/app/favorites/page.tsx` | 读 `localStorage` 列表 |
 
-全局壳子（顶栏、背景、Toast、页面过渡）：`src/components/Shell.tsx`，在 `src/app/layout.tsx` 中包裹。
+全局壳子（顶栏、背景、Toast）：`src/components/Shell.tsx`，在 `src/app/layout.tsx` 中包裹。
 
 ---
 
@@ -105,14 +115,14 @@ talk-dojo/
 │   │   ├── client.ts            # NEXT_PUBLIC_USE_LLM 等
 │   │   └── index.ts
 │   ├── components/
-│   │   ├── Shell.tsx            # 顶栏、背景、ToastProvider、PageTransition
-│   │   ├── PageTransition.tsx   # 路由切换动画
+│   │   ├── Shell.tsx            # 顶栏、背景、ToastProvider
 │   │   ├── ToastProvider.tsx    # useToast、底部 Toast
 │   │   ├── TypewriterText.tsx   # 打字机
 │   │   └── RadarBoard.tsx       # Recharts 五维雷达
 │   └── lib/
 │       ├── types.ts
 │       ├── constants.ts         # SESSION_REPORT_KEY
+│       ├── useSpeechToText.ts   # 训练页浏览器语音识别 hook
 │       ├── mock.ts              # mockParse、PRESSURE_MESSAGES（LLM 回退）
 │       ├── llm/
 │       │   ├── messages.ts      # system prompt + OpenAI 风格 messages
@@ -222,6 +232,7 @@ git push origin main
 - 无账号体系，清除浏览器数据会丢失收藏。
 - 战报仅保留最近一次于 `sessionStorage`。
 - 大模型为可选：未配置 `LLM_API_KEY` 或关闭 `NEXT_PUBLIC_USE_LLM` 时，训练话术为静态 Mock。
+- 训练页语音为浏览器能力：微信内置页、部分 iOS 环境、非安全上下文下的局域网 HTTP 可能不可用。
 
 ---
 
