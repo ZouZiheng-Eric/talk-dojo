@@ -48,6 +48,9 @@ export async function postChatCompletion(
   if (options?.jsonObject) {
     payload.response_format = { type: "json_object" };
   }
+  if (cfg.thinkingType) {
+    payload.thinking = { type: cfg.thinkingType };
+  }
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), cfg.timeoutMs);
