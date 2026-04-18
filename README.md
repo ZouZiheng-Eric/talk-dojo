@@ -1,6 +1,6 @@
 # 回怼道场 / Talk Dojo
 
-移动端优先的 Web 应用：上传本地短视频 → 语境解析（当前为 Mock）→ 三轮高压对话训练 → 战报（综合分 + 五维雷达 + 金句）→ 本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。
+移动端优先的 Web 应用：首页按场景进入训练；也可从「解析页」上传本地短视频 → 语境解析（当前为 Mock）→ **同一页**完成可选的「对方特征」描述（**打字与按住说话同一输入框**）→ 三轮高压对话 → 战报（综合分 + 五维雷达 + 金句）→ 本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。教练 NPC 台词在 `messages.ts` 中约束为 **第一人称当面施压**。
 
 ---
 
@@ -26,6 +26,15 @@ npm run dev
 ```
 
 浏览器访问终端里提示的地址（一般为 `http://localhost:3000`）。
+
+**手机与同局域网调试**：开发服务需监听 `0.0.0.0`，否则手机访问不到本机 IP。
+
+```bash
+npm run dev:lan
+# 或 Windows 双击 / 执行 scripts/dev-network.cmd（会打印本机 IPv4 再启动）
+```
+
+手机与电脑连同一 Wi‑Fi，浏览器打开 `http://<本机 IPv4>:3000`。语音相关能力依赖浏览器 **Web Speech API**（对部分非 HTTPS 局域网、iOS Safari 可能不可用）。
 
 ### 大模型（可选）
 
@@ -59,7 +68,7 @@ npm run dev
 | 能力 | 实现位置 |
 |------|----------|
 | 路由切换过渡 | `components/PageTransition.tsx`：`AnimatePresence` + `usePathname`，**不使用 `mode="wait"`**，避免与 App Router 换页冲突导致白屏 |
-| AI 打字机 | `components/TypewriterText.tsx`：训练页**当前轮**教练气泡 |
+| AI 打字机 | `components/TypewriterText.tsx`：可按需接入教练气泡 |
 | 战报档位 | `lib/performanceTier.ts` |
 | 五维雷达 | `components/RadarBoard.tsx`：Recharts，Tooltip 为档位 |
 | 收藏 Toast | `components/ToastProvider.tsx` + `useToast()`，在 `Shell` 内包裹全站 |
@@ -74,11 +83,14 @@ npm run dev
 
 | 路径 | 文件 | 说明 |
 |------|------|------|
-| `/` | `src/app/page.tsx` | 引导至解析页上传本地视频 |
-| `/parse` | `src/app/parse/page.tsx` | 上传并解析，展示语境画像，进入 `/train?url=local://video` |
-| `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入，结束后写入战报并 `replace('/report')` |
+| `/` | `src/app/page.tsx` | **四宫格**选场景进入训练（如老板/导师、同学/同事、亲戚、海外 racist）；子选项经 `sessionStorage` + URL `authority` / `peer` 写入，与头像映射见 `lib/chatAvatarMap.ts` |
+| `/parse` | `src/app/parse/page.tsx` | 上传并解析，展示语境画像，进入 `/train?...` |
+| `/scene` | `src/app/scene/page.tsx` | 旧书签兼容：**重定向**到 `/train` 并保留 `scene` / `opponent` / `authority` / `peer` |
+| `/train` | `src/app/train/page.tsx` | 先**准备页**（可选对方特征：textarea + 按住说话），再 **3 轮**对话（含语音输入按钮）；结束后写入战报并 `replace('/report')` |
 | `/report` | `src/app/report/page.tsx` | 读 `sessionStorage` 展示战报，可收藏 |
 | `/favorites` | `src/app/favorites/page.tsx` | 读 `localStorage` 列表 |
+
+头像资源放在 `public/profile/`（如 `同事.jpg`、`用户头像.jpg` 等），「我」侧气泡默认同路径下的用户头像图。
 
 全局壳子（顶栏、背景、Toast、页面过渡）：`src/components/Shell.tsx`，在 `src/app/layout.tsx` 中包裹。
 
@@ -94,6 +106,7 @@ talk-dojo/
 │   │   ├── globals.css          # 仅 @tailwind 三行
 │   │   ├── page.tsx
 │   │   ├── parse/page.tsx
+│   │   ├── scene/page.tsx         # 旧路由 → /train
 │   │   ├── train/page.tsx
 │   │   ├── report/page.tsx
 │   │   ├── favorites/page.tsx
@@ -112,8 +125,9 @@ talk-dojo/
 │   │   └── RadarBoard.tsx       # Recharts 五维雷达
 │   └── lib/
 │       ├── types.ts
-│       ├── constants.ts         # SESSION_REPORT_KEY
-│       ├── mock.ts              # mockParse、PRESSURE_MESSAGES（LLM 回退）
+│       ├── constants.ts         # SESSION_REPORT_KEY、首页角色 sessionStorage 键名
+│       ├── chatAvatarMap.ts     # 场景/authority/peer → profile 图、URL 解析
+│       ├── mock.ts              # mockParse、场景语境 mock、PRESSURE_MESSAGES（LLM 回退）
 │       ├── llm/
 │       │   ├── messages.ts      # system prompt + OpenAI 风格 messages
 │       │   ├── client.ts        # fetchCoachLine → /api/chat
@@ -128,7 +142,9 @@ talk-dojo/
 ├── .env.example                 # LLM_* 与 NEXT_PUBLIC_USE_LLM 示例
 ├── tailwind.config.js
 ├── next.config.mjs
-├── package.json
+├── scripts/
+│   └── dev-network.cmd            # Windows：打印 IPv4 后 npm run dev:lan
+├── package.json                   # scripts: dev、dev:lan、build …
 └── README.md
 ```
 
@@ -140,7 +156,9 @@ talk-dojo/
 
 | Key | 常量 | 写入位置 | 用途 |
 |-----|------|----------|------|
-| `talk-dojo-last-report` | `SESSION_REPORT_KEY`（`src/lib/constants.ts`） | `train/page.tsx` 训练结束 | `report/page.tsx` 读取；无数据则重定向 `/` |
+| `talk-dojo-last-report` | `SESSION_REPORT_KEY` | `train/page.tsx` 训练结束 | `report/page.tsx` 读取；无数据则重定向 `/` |
+| 首页老板/导师选择 | `HOME_STORED_AUTHORITY_CHOICE_KEY` | `page.tsx` | `train` 与头像：boss / mentor |
+| 首页同学/同事选择 | `HOME_STORED_PEER_CHOICE_KEY` | `page.tsx` | `train` 与头像：classmate / colleague（旧链接 `peer=roommate` 会规范为 colleague） |
 
 战报结构见 `BattleReport`（`src/lib/types.ts`）。
 
@@ -164,7 +182,8 @@ talk-dojo/
 ### 2. 调整训练轮次或 AI 话术
 
 - 轮次：`train/page.tsx` 中 `roundIndex >= 3` 与业务约定一致即可；若改轮数需同步 `buildCoachMessages` 等提示逻辑。
-- 在线生成：改 `src/lib/llm/messages.ts` 的 system prompt 或 `fetchCoachLine` 调用方式。
+- 在线生成：改 `src/lib/llm/messages.ts` 的 system prompt（含第一人称 NPC、轮次递进）或 `fetchCoachLine` 调用方式。
+- 场景默认语境：改 `src/lib/mock.ts` 的 `SCENE_PARSE_MAP`（键名含 `boss`、`colleague`、`relative`、`racist` 等）。
 - 回退话术：改 `src/lib/mock.ts` 的 `PRESSURE_MESSAGES`（API 未配置或失败时使用）。
 
 ### 3. 评分与战报
