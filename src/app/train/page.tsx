@@ -3,12 +3,13 @@
 import { useMemo, useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { mockParse, PRESSURE_MESSAGES } from "@/lib/mock";
+import { mockParse } from "@/lib/mock";
 import { SESSION_REPORT_KEY } from "@/lib/constants";
-import { buildReport } from "@/lib/report";
+import { buildReportWithOptionalAi } from "@/lib/report";
 import type { TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
 import { TypewriterText } from "@/components/TypewriterText";
+import { fetchCoachLine } from "@/lib/llm/client";
 
 function TrainInner() {
   const router = useRouter();
@@ -22,26 +23,53 @@ function TrainInner() {
   const [roundIndex, setRoundIndex] = useState(0);
   const [rounds, setRounds] = useState<TrainingRound[]>([]);
   const [draft, setDraft] = useState("");
+  const [pendingAi, setPendingAi] = useState("");
+  const [aiLoading, setAiLoading] = useState(true);
+  const [fromApi, setFromApi] = useState(false);
 
-  const currentAi =
-    roundIndex < 3 ? PRESSURE_MESSAGES[roundIndex] : "";
   const isDone = roundIndex >= 3;
 
   useEffect(() => {
-    if (isDone) {
-      const report = buildReport(url || "", parse, rounds);
+    if (roundIndex >= 3) return;
+    if (rounds.length !== roundIndex) return;
+
+    let cancelled = false;
+    setAiLoading(true);
+    setPendingAi("");
+    setFromApi(false);
+
+    fetchCoachLine(parse, rounds, roundIndex).then(({ text, fromApi: fa }) => {
+      if (cancelled) return;
+      setPendingAi(text);
+      setFromApi(fa);
+      setAiLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [roundIndex, rounds, parse]);
+
+  useEffect(() => {
+    if (!isDone) return;
+    let cancelled = false;
+    (async () => {
+      const report = await buildReportWithOptionalAi(url || "", parse, rounds);
+      if (cancelled) return;
       sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify(report));
-      const t = setTimeout(() => router.replace("/report"), 400);
-      return () => clearTimeout(t);
-    }
+      router.replace("/report");
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isDone, parse, rounds, router, url]);
 
   const submitRound = () => {
     const text = draft.trim();
-    if (!text || roundIndex >= 3) return;
+    if (!text || roundIndex >= 3 || aiLoading || !pendingAi) return;
     const next: TrainingRound = {
       round: roundIndex + 1,
-      aiMessage: PRESSURE_MESSAGES[roundIndex],
+      aiMessage: pendingAi,
       userReply: text,
     };
     setRounds((r) => [...r, next]);
@@ -56,8 +84,23 @@ function TrainInner() {
         animate={{ opacity: 1 }}
         className="mb-4 rounded-xl border border-dojo-accent/20 bg-dojo-mist/40 px-3 py-2"
       >
-        <p className="text-[10px] text-dojo-muted">语境</p>
-        <p className="font-display text-sm text-dojo-gold">{parse.title}</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[10px] text-dojo-muted">语境</p>
+            <p className="font-display text-sm text-dojo-gold">{parse.title}</p>
+          </div>
+          {!aiLoading && roundIndex < 3 ? (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wide ${
+                fromApi
+                  ? "bg-dojo-cyan/15 text-dojo-cyan"
+                  : "bg-dojo-line/50 text-dojo-muted"
+              }`}
+            >
+              {fromApi ? "AI" : "演示"}
+            </span>
+          ) : null}
+        </div>
       </motion.div>
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">
@@ -97,7 +140,16 @@ function TrainInner() {
               <span className="mb-1 block text-[10px] text-dojo-cyan">
                 第 {roundIndex + 1} / 3 轮
               </span>
-              <TypewriterText text={currentAi} speedMs={26} />
+              {aiLoading ? (
+                <span className="inline-flex items-center gap-1 text-dojo-muted">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-dojo-accent [animation-delay:300ms]" />
+                  生成台词中…
+                </span>
+              ) : (
+                <TypewriterText text={pendingAi} speedMs={26} />
+              )}
             </div>
           </motion.div>
         )}
@@ -121,16 +173,19 @@ function TrainInner() {
           <div className="flex gap-2">
             <input
               className={`${inputField} flex-1 text-sm`}
-              placeholder="输入回复"
+              placeholder={aiLoading ? "等待教练台词…" : "输入回复"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitRound()}
+              onKeyDown={(e) =>
+                e.key === "Enter" && !e.shiftKey && submitRound()
+              }
+              disabled={aiLoading || !pendingAi}
             />
             <motion.button
               type="button"
               className="shrink-0 rounded-xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-3 text-sm font-semibold text-white shadow-md shadow-dojo-accent/25 ring-1 ring-white/10 disabled:opacity-40"
               onClick={submitRound}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || aiLoading || !pendingAi}
               whileTap={{ scale: 0.92 }}
               whileHover={{ scale: 1.02 }}
               transition={{ type: "spring", stiffness: 500, damping: 24 }}

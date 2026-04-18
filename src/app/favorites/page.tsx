@@ -6,6 +6,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { linkPressable } from "@/lib/ui";
 import type { FavoriteItem } from "@/lib/types";
 import { loadFavorites, removeFavorite } from "@/lib/storage";
+import { clipUserQuoteForList, sortedTrainingRounds } from "@/lib/reportSnippets";
+import {
+  overallToPerformanceTier,
+  performanceTierTone,
+} from "@/lib/performanceTier";
 import { glassPanel } from "@/lib/ui";
 
 export default function FavoritesPage() {
@@ -65,7 +70,15 @@ export default function FavoritesPage() {
                         {it.parse.title}
                       </p>
                       <p className="mt-1 text-xs text-dojo-muted">
-                        综合 {it.overall} ·{" "}
+                        评级{" "}
+                        <span
+                          className={`font-semibold ${performanceTierTone(
+                            overallToPerformanceTier(it.overall)
+                          )}`}
+                        >
+                          {overallToPerformanceTier(it.overall)}
+                        </span>
+                        {" · "}
                         {new Date(it.savedAt).toLocaleString("zh-CN")}
                       </p>
                     </div>
@@ -81,11 +94,21 @@ export default function FavoritesPage() {
                   <p className="mt-3 text-xs text-dojo-muted">
                     冲突：{it.parse.conflict}
                   </p>
-                  {it.quotes[0] && (
-                    <p className="mt-2 border-l-2 border-dojo-accent/40 pl-2 text-xs italic text-dojo-text/80">
-                      「{it.quotes[0]}」
-                    </p>
-                  )}
+                  {(() => {
+                    const golden = it.goldenQuote?.text?.trim();
+                    const fromRounds = sortedTrainingRounds(it.rounds)
+                      .map((r) => clipUserQuoteForList(r.userReply, 44))
+                      .find((q) => q.length > 0);
+                    const preview =
+                      (golden && clipUserQuoteForList(golden, 44)) ||
+                      fromRounds ||
+                      it.quotes[0];
+                    return preview ? (
+                      <p className="mt-2 border-l-2 border-dojo-accent/40 pl-2 text-xs italic text-dojo-text/80">
+                        「{preview}」
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
               </motion.li>
             ))}
