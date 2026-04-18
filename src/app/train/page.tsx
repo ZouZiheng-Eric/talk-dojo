@@ -3,7 +3,7 @@
 import { useMemo, useState, Suspense, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { mockParse } from "@/lib/mock";
+import { mockParse, mockParseFromScene } from "@/lib/mock";
 import { SESSION_REPORT_KEY } from "@/lib/constants";
 import { buildReportWithOptionalAi } from "@/lib/report";
 import type { TrainingRound } from "@/lib/types";
@@ -20,8 +20,22 @@ function TrainInner() {
     const u = search.get("url");
     return u ? decodeURIComponent(u) : "";
   }, [search]);
+  const scene = useMemo(() => search.get("scene") || "", [search]);
+  const opponent = useMemo(() => {
+    const v = search.get("opponent");
+    return v ? decodeURIComponent(v) : "";
+  }, [search]);
 
-  const parse = useMemo(() => mockParse(url), [url]);
+  const parse = useMemo(
+    () => (scene ? mockParseFromScene(scene, opponent) : mockParse(url)),
+    [opponent, scene, url]
+  );
+  const contextSource = useMemo(() => {
+    if (url) return url;
+    if (!scene) return "";
+    const q = opponent ? `?opponent=${encodeURIComponent(opponent)}` : "";
+    return `scene://${scene}${q}`;
+  }, [opponent, scene, url]);
   const [roundIndex, setRoundIndex] = useState(0);
   const [rounds, setRounds] = useState<TrainingRound[]>([]);
   const [draft, setDraft] = useState("");
@@ -71,7 +85,7 @@ function TrainInner() {
     if (!isDone) return;
     let cancelled = false;
     (async () => {
-      const report = await buildReportWithOptionalAi(url || "", parse, rounds);
+      const report = await buildReportWithOptionalAi(contextSource, parse, rounds);
       if (cancelled) return;
       sessionStorage.setItem(SESSION_REPORT_KEY, JSON.stringify(report));
       router.replace("/report");
@@ -79,7 +93,7 @@ function TrainInner() {
     return () => {
       cancelled = true;
     };
-  }, [isDone, parse, rounds, router, url]);
+  }, [contextSource, isDone, parse, rounds, router]);
 
   const submitRound = () => {
     const text = draft.trim();

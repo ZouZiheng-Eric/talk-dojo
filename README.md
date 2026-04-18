@@ -1,6 +1,11 @@
 # 回嘴道场 / Talk Dojo
 
-移动端优先的 Web 应用：粘贴短视频链接 → 语境解析（当前为 Mock）→ 三轮高压对话训练 → 战报（综合分 + 五维雷达 + 金句）→ 本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。
+移动端优先的 Web 应用，支持两条进入训练舱的路径：
+
+- 链接导入：粘贴短视频链接 → 语境解析（当前为 Mock）→ 训练舱
+- 主页直达：选择场景卡片 → 场景设置（可选补充对方特征）→ 训练舱
+
+训练结束后生成战报（综合分 + 五维雷达 + 金句）并可本地收藏。无账号、无登录；可选接入 **OpenAI 兼容** 大模型生成训练台词（密钥仅服务端）。
 
 ---
 
@@ -86,9 +91,10 @@ npm run dev
 
 | 路径 | 文件 | 说明 |
 |------|------|------|
-| `/` | `src/app/page.tsx` | 输入链接，`router.push('/parse?url=...')` |
+| `/` | `src/app/page.tsx` | 首页 2x2 场景卡入口（老板/导师、同学/室友、烦人亲戚、海外 racist）+ 链接导入入口 |
+| `/scene` | `src/app/scene/page.tsx` | 场景设置页：展示已选场景，可选补充“对方特征”，再进入训练舱 |
 | `/parse` | `src/app/parse/page.tsx` | 展示语境画像，进入 `/train?url=...` |
-| `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入（可选麦克风语音），结束后写入战报并 `replace('/report')` |
+| `/train` | `src/app/train/page.tsx` | 3 轮 AI 话术 + 用户输入（可选麦克风语音）；支持 `url` 与 `scene/opponent` 两种上下文来源，结束后写入战报并 `replace('/report')` |
 | `/report` | `src/app/report/page.tsx` | 读 `sessionStorage` 展示战报，可收藏 |
 | `/favorites` | `src/app/favorites/page.tsx` | 读 `localStorage` 列表 |
 
@@ -105,6 +111,7 @@ talk-dojo/
 │   │   ├── layout.tsx
 │   │   ├── globals.css          # 仅 @tailwind 三行
 │   │   ├── page.tsx
+│   │   ├── scene/page.tsx
 │   │   ├── parse/page.tsx
 │   │   ├── train/page.tsx
 │   │   ├── report/page.tsx
