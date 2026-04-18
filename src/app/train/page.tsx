@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, Suspense, useEffect } from "react";
+import { useMemo, useState, Suspense, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { mockParse } from "@/lib/mock";
@@ -10,6 +10,8 @@ import type { TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
 import { TypewriterText } from "@/components/TypewriterText";
 import { fetchCoachLine } from "@/lib/llm/client";
+import { useToast } from "@/components/ToastProvider";
+import { useSpeechToText } from "@/lib/useSpeechToText";
 
 function TrainInner() {
   const router = useRouter();
@@ -27,7 +29,22 @@ function TrainInner() {
   const [aiLoading, setAiLoading] = useState(true);
   const [fromApi, setFromApi] = useState(false);
 
+  const draftRef = useRef("");
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  const showToast = useToast();
+  const speech = useSpeechToText({
+    lang: "zh-CN",
+    getPrefix: useCallback(() => draftRef.current, []),
+    onText: useCallback((t: string) => setDraft(t), []),
+    onError: useCallback((m: string) => showToast(m), [showToast]),
+  });
+
   const isDone = roundIndex >= 3;
+  /** 仅「等教练台词」时禁用麦克风；不支持语音的浏览器仍可点，会弹出说明 */
+  const speechMicBlocked = aiLoading || !pendingAi;
 
   useEffect(() => {
     if (roundIndex >= 3) return;
@@ -172,15 +189,55 @@ function TrainInner() {
         >
           <div className="flex gap-2">
             <input
-              className={`${inputField} flex-1 text-sm`}
+              className={`${inputField} min-w-0 flex-1 text-sm`}
               placeholder={aiLoading ? "等待教练台词…" : "输入回复"}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) =>
                 e.key === "Enter" && !e.shiftKey && submitRound()
               }
-              disabled={aiLoading || !pendingAi}
+              disabled={aiLoading || !pendingAi || speech.listening}
             />
+            <motion.button
+              type="button"
+              aria-label={speech.listening ? "停止语音识别" : "语音输入"}
+              title={
+                speechMicBlocked
+                  ? "请等待本轮教练台词出现后再用语音"
+                  : !speech.supported
+                    ? "当前环境可能不支持网页语音，点此查看说明"
+                    : speech.listening
+                      ? "点击停止"
+                      : "点击说话（中文）"
+              }
+              className={`shrink-0 rounded-xl border px-3 py-3 text-dojo-text transition-colors disabled:opacity-40 ${
+                speech.listening
+                  ? "border-dojo-coral bg-dojo-coral/15 ring-2 ring-dojo-coral/40"
+                  : "border-dojo-line/80 bg-dojo-mist/40"
+              } ${!speech.supported && !speechMicBlocked ? "opacity-70" : ""}`}
+              disabled={speechMicBlocked}
+              onClick={() => {
+                if (speechMicBlocked) return;
+                if (!speech.supported) {
+                  showToast(
+                    "网页语音需要浏览器支持 Web Speech API。若按钮无效：勿用微信内置浏览器，改用系统 Chrome；手机用 http://局域网 访问时可能不可用，可试 HTTPS 隧道或在电脑 localhost 测试；iOS Safari 常不支持。"
+                  );
+                  return;
+                }
+                speech.toggle();
+              }}
+              whileTap={{ scale: 0.92 }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-5 w-5"
+                aria-hidden
+              >
+                <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V20H8v2h8v-2h-3v-2.08A7 7 0 0 0 19 11h-2Z" />
+              </svg>
+            </motion.button>
             <motion.button
               type="button"
               className="shrink-0 rounded-xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-3 text-sm font-semibold text-white shadow-md shadow-dojo-accent/25 ring-1 ring-white/10 disabled:opacity-40"
