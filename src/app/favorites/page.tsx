@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { linkPressable } from "@/lib/ui";
 import type { FavoriteItem } from "@/lib/types";
 import { loadFavorites, removeFavorite } from "@/lib/storage";
 import { glassPanel } from "@/lib/ui";
@@ -40,7 +41,7 @@ export default function FavoritesPage() {
           <p className="text-sm text-dojo-muted">还没有收藏</p>
           <Link
             href="/"
-            className="mt-4 inline-block text-sm text-dojo-accent underline-offset-4 hover:underline"
+            className={`${linkPressable} mt-4 inline-block text-sm text-dojo-accent underline-offset-4 hover:underline`}
           >
             去首页开练
           </Link>
@@ -68,13 +69,14 @@ export default function FavoritesPage() {
                         {new Date(it.savedAt).toLocaleString("zh-CN")}
                       </p>
                     </div>
-                    <button
+                    <motion.button
                       type="button"
                       onClick={() => del(it.id)}
-                      className="shrink-0 text-xs text-dojo-coral/90 hover:underline"
+                      className="shrink-0 rounded-lg px-2 py-1 text-xs text-dojo-coral/90 hover:underline"
+                      whileTap={{ scale: 0.9 }}
                     >
                       删除
-                    </button>
+                    </motion.button>
                   </div>
                   <p className="mt-3 text-xs text-dojo-muted">
                     冲突：{it.parse.conflict}
@@ -93,7 +95,7 @@ export default function FavoritesPage() {
 
       <Link
         href="/"
-        className="block text-center text-sm text-dojo-muted hover:text-dojo-accent"
+        className={`${linkPressable} block text-center text-sm text-dojo-muted hover:text-dojo-accent`}
       >
         ← 返回首页
       </Link>

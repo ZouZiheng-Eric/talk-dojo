@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -28,7 +29,12 @@ export function RadarBoard({ scores }: Props) {
   }));
 
   return (
-    <div className={`${glassPanel} h-[280px] w-full p-2`}>
+    <motion.div
+      className={`${glassPanel} h-[280px] w-full overflow-hidden p-2`}
+      initial={{ opacity: 0, scale: 0.88 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.08 }}
+    >
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="52%" outerRadius="72%" data={data}>
           <PolarGrid stroke="#2a2a3d" />
@@ -42,9 +48,13 @@ export function RadarBoard({ scores }: Props) {
             stroke="#c9a962"
             fill="#c9a962"
             fillOpacity={0.35}
+            isAnimationActive
+            animationBegin={200}
+            animationDuration={1100}
+            animationEasing="ease-out"
           />
         </RadarChart>
       </ResponsiveContainer>
-    </div>
+    </motion.div>
   );
 }

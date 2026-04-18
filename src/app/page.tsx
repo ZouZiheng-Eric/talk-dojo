@@ -55,7 +55,9 @@ export default function HomePage() {
           type="button"
           className={`${btnPrimary} w-full`}
           onClick={start}
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.94 }}
+          whileHover={{ scale: 1.02 }}
+          transition={{ type: "spring", stiffness: 480, damping: 26 }}
         >
           开始训练
         </motion.button>

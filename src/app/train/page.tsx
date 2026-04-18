@@ -8,6 +8,7 @@ import { SESSION_REPORT_KEY } from "@/lib/constants";
 import { buildReport } from "@/lib/report";
 import type { TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
+import { TypewriterText } from "@/components/TypewriterText";
 
 function TrainInner() {
   const router = useRouter();
@@ -96,7 +97,7 @@ function TrainInner() {
               <span className="mb-1 block text-[10px] text-dojo-cyan">
                 第 {roundIndex + 1} / 3 轮
               </span>
-              {currentAi}
+              <TypewriterText text={currentAi} speedMs={26} />
             </div>
           </motion.div>
         )}
@@ -127,10 +128,12 @@ function TrainInner() {
             />
             <motion.button
               type="button"
-              className="shrink-0 rounded-xl bg-dojo-accent px-4 py-3 text-sm font-medium text-dojo-void disabled:opacity-40"
+              className="shrink-0 rounded-xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-3 text-sm font-semibold text-white shadow-md shadow-dojo-accent/25 ring-1 ring-white/10 disabled:opacity-40"
               onClick={submitRound}
               disabled={!draft.trim()}
-              whileTap={{ scale: 0.96 }}
+              whileTap={{ scale: 0.92 }}
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 500, damping: 24 }}
             >
               发送
             </motion.button>

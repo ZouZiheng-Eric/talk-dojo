@@ -2,10 +2,10 @@
 
 import { useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { mockParse } from "@/lib/mock";
-import { glassPanel } from "@/lib/ui";
+import Link from "next/link";
+import { glassPanel, linkPressable } from "@/lib/ui";
 
 function ParseInner() {
   const search = useSearchParams();
@@ -56,7 +56,7 @@ function ParseInner() {
 
       <Link
         href={trainHref}
-        className="flex min-h-14 w-full items-center justify-center rounded-2xl bg-dojo-accent px-4 py-4 text-center text-base font-semibold text-dojo-void no-underline active:opacity-90"
+        className={`${linkPressable} flex min-h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-dojo-accent to-dojo-coral px-4 py-4 text-center text-base font-semibold text-white no-underline shadow-lg shadow-dojo-accent/30 ring-1 ring-white/15 hover:brightness-105 active:brightness-95`}
       >
         进入训练
       </Link>

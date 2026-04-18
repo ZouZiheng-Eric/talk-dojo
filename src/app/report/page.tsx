@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { RadarBoard } from "@/components/RadarBoard";
+import { AnimatedScore } from "@/components/AnimatedScore";
+import { useToast } from "@/components/ToastProvider";
 import type { BattleReport, FavoriteItem } from "@/lib/types";
 import { SESSION_REPORT_KEY } from "@/lib/constants";
 import { saveFavorite } from "@/lib/storage";
-import { glassPanel } from "@/lib/ui";
+import { glassPanel, linkPressable } from "@/lib/ui";
 
 export default function ReportPage() {
   const router = useRouter();
+  const showToast = useToast();
   const [report, setReport] = useState<BattleReport | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -37,6 +40,7 @@ export default function ReportPage() {
     };
     saveFavorite(item);
     setSaved(true);
+    showToast("已收藏到本地");
   };
 
   if (!report) {
@@ -67,7 +71,7 @@ export default function ReportPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-dojo-accent/5 to-transparent" />
         <p className="relative text-xs text-dojo-muted">综合评分</p>
         <p className="relative font-display text-5xl font-bold tabular-nums text-dojo-gold">
-          {report.overall}
+          <AnimatedScore value={report.overall} durationMs={1500} />
         </p>
         <p className="relative mt-1 text-xs text-dojo-muted">满分 100</p>
       </motion.div>
@@ -109,13 +113,15 @@ export default function ReportPage() {
           onClick={favorite}
           disabled={saved}
           className="flex-1 rounded-xl border border-dojo-accent/40 bg-dojo-mist/50 py-3.5 text-sm font-medium text-dojo-gold transition-colors disabled:opacity-60"
-          whileTap={{ scale: 0.98 }}
+          whileTap={{ scale: 0.94 }}
+          whileHover={{ scale: saved ? 1 : 1.02 }}
+          transition={{ type: "spring", stiffness: 480, damping: 26 }}
         >
           {saved ? "已收藏" : "收藏"}
         </motion.button>
         <Link
           href="/"
-          className="flex flex-1 items-center justify-center rounded-xl border border-dojo-line py-3.5 text-center text-sm text-dojo-muted transition-colors hover:border-dojo-accent/40 hover:text-dojo-text"
+          className={`${linkPressable} flex flex-1 items-center justify-center rounded-xl border border-dojo-line py-3.5 text-center text-sm text-dojo-muted transition-colors hover:border-dojo-accent/40 hover:text-dojo-text`}
         >
           再来一局
         </Link>
@@ -123,7 +129,7 @@ export default function ReportPage() {
 
       <Link
         href="/favorites"
-        className="block text-center text-xs text-dojo-cyan underline-offset-4 hover:underline"
+        className={`${linkPressable} block text-center text-xs text-dojo-cyan underline-offset-4 hover:underline`}
       >
         我的收藏
       </Link>
