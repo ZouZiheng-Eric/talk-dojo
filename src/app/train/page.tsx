@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, useState, Suspense, useEffect, type ReactNode } from "react";
+import {
+  useMemo,
+  useState,
+  Suspense,
+  useEffect,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { mockParse, mockParseFromScene } from "@/lib/mock";
@@ -8,8 +16,9 @@ import { SESSION_REPORT_KEY } from "@/lib/constants";
 import { buildReportWithOptionalAi } from "@/lib/report";
 import type { TrainingRound } from "@/lib/types";
 import { inputField } from "@/lib/ui";
-import { TypewriterText } from "@/components/TypewriterText";
 import { fetchCoachLine } from "@/lib/llm/client";
+import { useToast } from "@/components/ToastProvider";
+import { useSpeechToText } from "@/lib/useSpeechToText";
 
 function ChatAvatar({ children }: { children: ReactNode }) {
   return (
@@ -22,9 +31,9 @@ function ChatAvatar({ children }: { children: ReactNode }) {
 function CoachBubble({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-[min(100%,20rem)] sm:max-w-[75%]">
-      <div className="relative inline-block rounded-lg bg-chat-bubbleLeft px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000]">
+      <div className="relative inline-block rounded-lg bg-white px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000] text-justify shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
         <span
-          className="absolute left-[-6px] top-1/2 z-0 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-r-[7px] border-r-chat-bubbleLeft"
+          className="absolute left-[-6px] top-1/2 z-0 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-r-[7px] border-r-white"
           aria-hidden
         />
         {children}
@@ -36,7 +45,7 @@ function CoachBubble({ children }: { children: ReactNode }) {
 function UserBubble({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-[min(100%,20rem)] sm:max-w-[75%]">
-      <div className="relative inline-block rounded-lg bg-chat-bubbleRight px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000]">
+      <div className="relative inline-block rounded-lg bg-chat-bubbleRight px-[14px] py-[10px] text-[15px] leading-[1.45] text-[#000000] text-justify">
         <span
           className="absolute right-[-6px] top-1/2 z-0 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-l-[7px] border-l-chat-bubbleRight"
           aria-hidden
@@ -93,6 +102,19 @@ function TrainInner() {
   const [draft, setDraft] = useState("");
   const [pendingAi, setPendingAi] = useState("");
   const [aiLoading, setAiLoading] = useState(true);
+  const [aiMessagePulse, setAiMessagePulse] = useState(0);
+  const draftRef = useRef("");
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+  const showToast = useToast();
+  const speech = useSpeechToText({
+    lang: "zh-CN",
+    getPrefix: useCallback(() => draftRef.current, []),
+    onText: useCallback((t: string) => setDraft(t), []),
+    onError: useCallback((m: string) => showToast(m), [showToast]),
+  });
+  const speechMicBlocked = aiLoading || !pendingAi;
   const isDone = roundIndex >= 3;
 
   useEffect(() => {
@@ -107,6 +129,11 @@ function TrainInner() {
       if (cancelled) return;
       setPendingAi(text);
       setAiLoading(false);
+      setAiMessagePulse((n) => n + 1);
+      // 设备支持时给一个很短的触觉反馈，接近 IM 新消息到达感受
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(18);
+      }
     });
 
     return () => {
@@ -142,7 +169,7 @@ function TrainInner() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-120px)] flex-col pt-2">
+    <div className="flex min-h-[calc(100dvh-120px)] flex-col rounded-2xl bg-[#f2f3f5] p-2 pt-2">
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">
         <AnimatePresence mode="popLayout">
           {rounds.map((r) => (
@@ -160,9 +187,18 @@ function TrainInner() {
 
         {roundIndex < 3 && (
           <motion.div
-            key={`ai-${roundIndex}`}
+            key={`ai-${roundIndex}-${aiMessagePulse}`}
             initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              x: aiLoading ? 0 : [0, -2, 2, -1, 1, 0],
+            }}
+            transition={{
+              opacity: { duration: 0.18 },
+              y: { duration: 0.18 },
+              x: { duration: 0.28, ease: "easeOut" },
+            }}
           >
             <CoachRow>
               {aiLoading ? (
@@ -173,7 +209,7 @@ function TrainInner() {
                   生成台词中…
                 </span>
               ) : (
-                <TypewriterText text={pendingAi} speedMs={26} />
+                pendingAi
               )}
             </CoachRow>
           </motion.div>
@@ -204,8 +240,48 @@ function TrainInner() {
               onKeyDown={(e) =>
                 e.key === "Enter" && !e.shiftKey && submitRound()
               }
-              disabled={aiLoading || !pendingAi}
+              disabled={aiLoading || !pendingAi || speech.listening}
             />
+            <motion.button
+              type="button"
+              aria-label={speech.listening ? "停止语音识别" : "语音输入"}
+              title={
+                speechMicBlocked
+                  ? "请等待本轮教练台词出现后再用语音"
+                  : !speech.supported
+                    ? "当前环境可能不支持网页语音，点此查看说明"
+                    : speech.listening
+                      ? "点击停止"
+                      : "点击说话（中文）"
+              }
+              className={`shrink-0 rounded-full border px-3 py-2.5 text-dojo-text transition-colors disabled:opacity-40 ${
+                speech.listening
+                  ? "border-dojo-coral bg-dojo-coral/15 ring-2 ring-dojo-coral/40"
+                  : "border-dojo-line/80 bg-dojo-mist/40"
+              } ${!speech.supported && !speechMicBlocked ? "opacity-70" : ""}`}
+              disabled={speechMicBlocked}
+              onClick={() => {
+                if (speechMicBlocked) return;
+                if (!speech.supported) {
+                  showToast(
+                    "网页语音需要浏览器支持 Web Speech API。若按钮无效：勿用微信内置浏览器，改用系统 Chrome；手机用 http://局域网 访问时可能不可用，可试 HTTPS 隧道或在电脑 localhost 测试；iOS Safari 常不支持。"
+                  );
+                  return;
+                }
+                speech.toggle();
+              }}
+              whileTap={{ scale: 0.94 }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="h-5 w-5"
+                aria-hidden
+              >
+                <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V20H8v2h8v-2h-3v-2.08A7 7 0 0 0 19 11h-2Z" />
+              </svg>
+            </motion.button>
             <motion.button
               type="button"
               className="shrink-0 rounded-full bg-dojo-accent px-5 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-40"
