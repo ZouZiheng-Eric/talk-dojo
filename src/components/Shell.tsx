@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { PageTransition } from "@/components/PageTransition";
 import { ToastProvider } from "@/components/ToastProvider";
 import { linkPressable } from "@/lib/ui";
 
@@ -39,9 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
         </header>
-        <main className="mx-auto max-w-lg px-4 pb-8 pt-4">
-          <PageTransition>{children}</PageTransition>
-        </main>
+        <main className="mx-auto max-w-lg px-4 pb-8 pt-4">{children}</main>
       </ToastProvider>
     </div>
   );
