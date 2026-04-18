@@ -6,7 +6,11 @@ export const SESSION_PARSE_KEY = "talk-dojo-session-parse";
 /** 本地上传解析成功后写入 session，训练页 `?url=` 需与此一致 */
 export const LOCAL_VIDEO_SESSION_URL = "local://video";
 
-/** 本地视频上传 `/api/video-parse` 默认上限；可用 `LLM_VIDEO_UPLOAD_MAX_BYTES` 覆盖 */
+/**
+ * 本地视频上传 `/api/video-parse` 默认上限（MB）。
+ * - **服务端硬上限**（字节）：在部署环境设置 `LLM_VIDEO_UPLOAD_MAX_BYTES`（覆盖默认并参与校验）。
+ * - **解析页文案**（可选）：设置 `NEXT_PUBLIC_VIDEO_UPLOAD_MAX_MB` 为与上面对应的 MB 整数，避免页面上仍显示旧数字。
+ */
 export const VIDEO_UPLOAD_MAX_MB = 30;
 export const VIDEO_UPLOAD_MAX_BYTES_DEFAULT =
   VIDEO_UPLOAD_MAX_MB * 1024 * 1024;
