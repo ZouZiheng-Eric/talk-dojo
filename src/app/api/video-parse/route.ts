@@ -15,7 +15,7 @@ export const maxDuration = 300;
 
 type JsonBody = { url?: unknown; debug?: unknown };
 
-const DEFAULT_UPLOAD_MAX = 50 * 1024 * 1024;
+const DEFAULT_UPLOAD_MAX = 15 * 1024 * 1024;
 
 /** Node / 跨 realm 下 File 不一定通过 instanceof Blob，用结构判断 */
 function isBlobLike(v: unknown): v is Blob {

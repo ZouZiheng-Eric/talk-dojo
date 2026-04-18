@@ -5,6 +5,7 @@ export function mockParse(_videoUrl: string): ParseResult {
     title: "中国人海外职场被歧视",
     conflict: "老板公开否定你",
     contextKeywords: "太真实了",
+    strategies: ["先问对方标准再回应", "把个人体验说成团队数据再问依据"],
   };
 }
 
@@ -13,21 +14,25 @@ const SCENE_PARSE_MAP: Record<string, ParseResult> = {
     title: "老板/导师高压质疑",
     conflict: "对方当众否定你的方案并要求立刻给结果",
     contextKeywords: "你到底能不能扛事？别解释，给结论。",
+    strategies: ["要结论时先复述对方质疑点再答", "用时间节点代替空头承诺"],
   },
   roommate: {
     title: "同学/室友边界冲突",
     conflict: "对方长期越界占用你的时间和空间",
     contextKeywords: "大家都这么相处，你怎么这么计较？",
+    strategies: ["把球踢回：谁定规则谁执行", "用具体事实代替情绪控诉"],
   },
   relative: {
     title: "烦人亲戚持续施压",
     conflict: "对方反复拿你的选择和别人比较并进行道德绑架",
     contextKeywords: "都是为你好，你别不识好歹。",
+    strategies: ["承认关心再划边界", "反问对方若换位能否接受"],
   },
   racist: {
     title: "海外 racist 挑衅",
     conflict: "对方带偏见发言并试图用身份压制你",
     contextKeywords: "你们这种人就该闭嘴听着。",
+    strategies: ["把人身攻击拉回到具体事实与场合", "冷静反问对方依据"],
   },
 };
 

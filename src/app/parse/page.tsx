@@ -122,7 +122,7 @@ export default function ParsePage() {
           className={`${linkPressable} w-full rounded-xl border border-dojo-line/80 bg-dojo-mist/50 px-4 py-3 text-left text-sm text-dojo-text`}
           onClick={() => fileRef.current?.click()}
         >
-          选择本地视频（建议 mp4，≤ 约 50MB，受部署环境限制）
+          选择本地视频（建议 mp4，≤ 约 15MB，受部署环境限制）
         </button>
       </div>
 
@@ -172,6 +172,29 @@ export default function ParsePage() {
               <span className="text-base text-dojo-text">{row.v}</span>
             </motion.div>
           ))}
+          <motion.div
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.08 + 3 * 0.05 }}
+            className="flex flex-col gap-2 px-5 py-4"
+          >
+            <span className="text-[10px] uppercase tracking-wider text-dojo-muted">
+              策略要点
+            </span>
+            {parse.strategies.length > 0 ? (
+              <ul className="list-inside list-decimal space-y-1 text-base text-dojo-text">
+                {parse.strategies.map((s, j) => (
+                  <li key={j} className="leading-relaxed">
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-base text-dojo-muted">
+                暂无（解析未归纳出具体策略）
+              </span>
+            )}
+          </motion.div>
         </motion.div>
       ) : null}
 

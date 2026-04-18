@@ -22,9 +22,20 @@ function tryParseJsonObject(s: string): unknown {
   }
 }
 
+function parseStrategiesField(obj: Record<string, unknown>): string[] {
+  const raw = obj.strategies;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is string => typeof x === "string")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .map((s) => clip(s, 120));
+}
+
 /**
  * 从模型 JSON 或 session 等对象提取 {@link ParseResult}。
- * 兼容历史字段名 `hotComment`。
+ * 兼容历史字段名 `hotComment`；无 `strategies` 时视为空数组。
  */
 export function parseResultFromJsonObject(obj: Record<string, unknown>): ParseResult | null {
   const title = typeof obj.title === "string" ? obj.title.trim() : "";
@@ -41,6 +52,7 @@ export function parseResultFromJsonObject(obj: Record<string, unknown>): ParseRe
     title: clip(title, 80),
     conflict: clip(conflict, 400),
     contextKeywords: clip(rawKw, 160),
+    strategies: parseStrategiesField(obj),
   };
 }
 

@@ -3,6 +3,11 @@ export type ParseResult = {
   conflict: string;
   /** 关键词（可由模型从评论/弹幕氛围提炼） */
   contextKeywords: string;
+  /**
+   * 从视频语境归纳的可选回怼/应对策略（几条短语）；无则空数组。
+   * 结算时供改进建议对照；无策略时由评分侧输出固定说明。
+   */
+  strategies: string[];
 };
 
 export type TrainingRound = {

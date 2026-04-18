@@ -20,6 +20,11 @@ export function buildCoachSystemPrompt(parse: ParseResult): string {
 - 主题：${parse.title}
 - 冲突：${parse.conflict}
 - 关键词：${parse.contextKeywords}
+${
+  parse.strategies.length > 0
+    ? `- 视频侧策略要点（可作施压背景，不必逐条复读）：${parse.strategies.join("；")}`
+    : "- 视频侧策略要点：（解析未归纳出条目，按冲突与关键词发挥）"
+}
 
 红线：不涉违法、不歧视、不辱骂家人与生理缺陷；除此以外不必给对方面子。
 
