@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, type ComponentType, type SVGProps } from "react";
-import type { StaticImageData } from "next/image";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,18 +13,6 @@ import {
 } from "@/lib/constants";
 import { CHAT_AVATAR_QUERY } from "@/lib/chatAvatarMap";
 
-/** 仓库根目录同名 PNG，打包为静态资源（与手动维护 public 脱钩） */
-import bossMentorTile from "../../老板导师.png";
-import classmateColleagueTile from "../../同学室友.png";
-import overseasRacistTile from "../../海外racist.png";
-
-function staticTileSrc(img: string | StaticImageData): string {
-  return typeof img === "string" ? img : img.src;
-}
-
-/** 与全站 dojo.accent 同色（主页四宫格图标） */
-const ICON_THEME = "text-dojo-accent";
-
 /**
  * 首页四宫格按钮 1–4 的跳转地址（可分别改成不同聊天/训练路由）
  * 顺序：左上 → 右上 → 左下 → 右下
@@ -35,115 +22,62 @@ const HOME_CHAT_HREF_BUTTON_2 = "/train?scene=colleague";
 const HOME_CHAT_HREF_BUTTON_3 = "/train?scene=relative";
 const HOME_CHAT_HREF_BUTTON_4 = "/train?scene=racist";
 
-/** 烦人亲戚：参考图1 — 三人 + 大方形对话气泡（三尾 + …） */
-function IconRelative(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 48 48"
-      fill="none"
-      stroke="currentColor"
-      aria-hidden
-      {...props}
-    >
-      <rect
-        x="4.5"
-        y="6"
-        width="39"
-        height="16"
-        rx="3.5"
-        strokeWidth="2"
-      />
-      <circle cx="17.5" cy="14" r="1.35" fill="currentColor" stroke="none" />
-      <circle cx="24" cy="14" r="1.35" fill="currentColor" stroke="none" />
-      <circle cx="30.5" cy="14" r="1.35" fill="currentColor" stroke="none" />
-      <path
-        d="M11 22v7M24 22v7M37 22v7"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="11" cy="34" r="3.6" strokeWidth="2" />
-      <path
-        d="M6 42c0-3.4 2.4-6 5-6h0c2.6 0 5 2.6 5 6"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="24" cy="34" r="3.6" strokeWidth="2" />
-      <path
-        d="M19 42c0-3.4 2.2-6 5-6h0c2.8 0 5 2.6 5 6"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="37" cy="34" r="3.6" strokeWidth="2" />
-      <path
-        d="M32 42c0-3.4 2.4-6 5-6h0c2.6 0 5 2.6 5 6"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-type HomeTileCommon = { label: string; href: string; pick?: "authority" | "peer" };
-type HomeTileSvg = HomeTileCommon & {
-  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+type HomeTile = {
+  label: string;
+  href: string;
+  /** 两个 emoji 组合：主体 + 表情 */
+  emoji: [string, string];
+  pick?: "authority" | "peer";
 };
-type HomeTileImg = HomeTileCommon & { iconSrc: string };
-type HomeTile = HomeTileSvg | HomeTileImg;
 
 const HOME_QUICK_GRID: HomeTile[] = [
   {
     label: "老板/导师",
     href: HOME_CHAT_HREF_BUTTON_1,
-    iconSrc: staticTileSrc(bossMentorTile),
+    emoji: ["👨🏻‍🏫", "🤯"],
     pick: "authority",
   },
   {
     label: "同学/同事",
     href: HOME_CHAT_HREF_BUTTON_2,
-    iconSrc: staticTileSrc(classmateColleagueTile),
+    emoji: ["👩🏻‍🎓", "😅"],
     pick: "peer",
   },
   {
     label: "烦人亲戚",
     href: HOME_CHAT_HREF_BUTTON_3,
-    Icon: IconRelative,
+    emoji: ["👴🏻", "🙄"],
   },
   {
     label: "海外 racist",
     href: HOME_CHAT_HREF_BUTTON_4,
-    iconSrc: staticTileSrc(overseasRacistTile),
+    emoji: ["💂🏻‍♀️", "🤬"],
   },
 ];
 
-/**
- * 位图宫格图标：原图 object-contain + 圆角；与 SVG 协调靠白底宫格。
- * 默认 3rem / sm:3.5rem；「海外 racist」约大 1/10。
- */
-const RASTER_ICON_LG_CLASS =
-  "h-[3.3rem] w-[3.3rem] sm:h-[3.85rem] sm:w-[3.85rem]";
-
+/** Emoji 双字组合图标：系统原生 emoji 字体，跨端风格尽量一致 */
 function HomeTileGraphic({ item }: { item: HomeTile }) {
-  if ("iconSrc" in item) {
-    const overseasRacist = item.label === "海外 racist";
-    return (
-      <img
-        src={item.iconSrc}
-        alt=""
-        className={`pointer-events-none shrink-0 rounded-xl object-contain object-center ${
-          overseasRacist
-            ? RASTER_ICON_LG_CLASS
-            : "h-12 w-12 sm:h-14 sm:w-14"
-        }`}
-        aria-hidden
-      />
-    );
-  }
-  const Comp = item.Icon;
-  return <Comp className={`h-12 w-12 shrink-0 sm:h-14 sm:w-14 ${ICON_THEME}`} />;
+  return (
+    <div
+      className="pointer-events-none flex select-none items-center justify-center gap-0.5 leading-none"
+      style={{
+        fontSize: "clamp(1.75rem, 8.5vw, 2.35rem)",
+        fontFamily:
+          '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif',
+      }}
+      aria-hidden
+    >
+      <span>{item.emoji[0]}</span>
+      <span>{item.emoji[1]}</span>
+    </div>
+  );
 }
 
-/** 与位图图标底一致：#fff；线稿 SVG 宫格亦同底 */
-const TILE_CLASS = `${linkPressable} flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 rounded-[22px] bg-[#ffffff] px-2 py-2 text-center shadow-[0_8px_28px_-10px_rgba(0,0,0,0.14)] ring-1 ring-black/[0.06] transition-[transform,box-shadow] hover:shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18)]`;
+/**
+ * 苹果磨砂玻璃风：半透明白 + 强 backdrop-blur + 细内描边 + 内顶高光
+ * 保留白底基调但不再是死白，hover/press 有层次反馈
+ */
+const TILE_CLASS = `${linkPressable} group relative flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[22px] bg-white/55 px-2 py-2 text-center shadow-[0_8px_28px_-12px_rgba(15,23,42,0.25)] ring-1 ring-white/60 backdrop-blur-2xl backdrop-saturate-150 transition-[transform,box-shadow,background-color] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:rounded-t-[22px] before:bg-gradient-to-b before:from-white/55 before:to-transparent before:opacity-80 hover:bg-white/65 hover:shadow-[0_14px_36px_-10px_rgba(15,23,42,0.32)] active:bg-white/50`;
 
 export default function HomePage() {
   const router = useRouter();
@@ -229,12 +163,12 @@ export default function HomePage() {
                   const body = (
                     <>
                       <HomeTileGraphic item={item} />
-                      <span className="text-balance px-0.5 text-center text-xs font-bold leading-snug text-[#111827] sm:text-sm">
+                      <span className="text-balance px-0.5 text-center text-xs font-bold leading-snug text-[#0f172a] drop-shadow-[0_1px_0_rgba(255,255,255,0.6)] sm:text-sm">
                         {item.label}
                       </span>
                     </>
                   );
-                  if ("pick" in item && item.pick === "authority") {
+                  if (item.pick === "authority") {
                     return (
                       <button
                         key={item.label}
@@ -246,7 +180,7 @@ export default function HomePage() {
                       </button>
                     );
                   }
-                  if ("pick" in item && item.pick === "peer") {
+                  if (item.pick === "peer") {
                     return (
                       <button
                         key={item.label}
