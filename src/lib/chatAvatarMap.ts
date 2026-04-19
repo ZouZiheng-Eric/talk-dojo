@@ -30,6 +30,13 @@ export function profilePublicUrl(file: string): string {
   return `${PROFILE_BASE}/${file}`;
 }
 
+/** 三轮结束、战报生成中在聊天区下方循环播放（`public/profile/鞭子.mp4`） */
+export const REPORT_GENERATING_WHIP_FILE = "鞭子.mp4";
+
+export function reportGeneratingWhipUrl(): string {
+  return profilePublicUrl(REPORT_GENERATING_WHIP_FILE);
+}
+
 export function parseAuthorityFromSearch(
   params: ReadonlyURLSearchParams | URLSearchParams
 ): HomeStoredAuthorityChoice | null {

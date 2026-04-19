@@ -27,6 +27,7 @@ import {
   readPeerFromSession,
   resolveCoachAvatar,
   resolveUserAvatar,
+  reportGeneratingWhipUrl,
 } from "@/lib/chatAvatarMap";
 import { buildReport, buildReportWithOptionalAi } from "@/lib/report";
 import type { BattleReport, ParseResult, TrainingRound } from "@/lib/types";
@@ -51,7 +52,7 @@ const RESERVED_OPPONENT_ROLE_TOKENS = new Set([
   "roommate",
 ]);
 
-/** 每轮轮换，避免「生成台词中」重复 */
+/** 每轮轮换，避免加载态文案重复 */
 const COACH_LOADING_PHRASES = [
   "教练正在热身",
   "杠精在组织语言",
@@ -363,7 +364,7 @@ function TrainInner() {
     };
   }, [contextSource, isDone, parseEffective, rounds]);
 
-  /** 战报就绪后进入结算页（不再播放图片/GIF/视频类胜利动画） */
+  /** 战报就绪后进入结算页（生成中在聊天区下方循环播 `public/profile/鞭子.mp4`） */
   useEffect(() => {
     if (!isDone || !reportReady || !builtReport) return;
     goToReport();
@@ -392,34 +393,29 @@ function TrainInner() {
               在开始之前，聊一句？
             </p>
             <p className="text-[15px] leading-relaxed text-dojo-text/90">
-              对方是什么特征，发生了什么事？
+              对方是谁，发生了什么事？
             </p>
             <p className="text-[13px] leading-relaxed text-dojo-muted">
-              越具体，AI 模拟得越真实。可打字，也可按住麦克风说，内容都在同一框里。
+              细节越具体，对练越贴近真实。支持打字与语音，二选一或混用皆可。
             </p>
             {scene ? (
-              <p className="text-[13px] text-dojo-muted/90">
-                已选择场景：{sceneLabel}
+              <p className="text-[12px] font-medium uppercase tracking-[0.12em] text-dojo-muted/90">
+                场景 · {sceneLabel}
               </p>
             ) : null}
           </div>
 
           <div className={`${glassPanel} mt-4 space-y-3 p-5 sm:p-6`}>
-            <label
-              className="block text-xs font-medium text-dojo-muted"
-              htmlFor="opponent-hint"
-            >
-              可选：对方特征
-            </label>
             <textarea
               id="opponent-hint"
               rows={5}
               className={`${inputField} min-h-[7.5rem] resize-y py-3 text-[15px] leading-relaxed`}
-              placeholder="如：强势、爱打断、阴阳怪气。按住下方麦克风时，识别文字会写进这里。"
+              placeholder="例：语气强势、爱打断、阴阳怪气。语音会同步进本框。"
               value={opponentHint}
               onChange={(e) => setOpponentHint(e.target.value)}
               readOnly={prepSpeech.listening}
               aria-live="polite"
+              aria-label="对方与现场（可选）"
             />
             <div className="flex flex-col items-center pt-1">
               <div
@@ -431,7 +427,7 @@ function TrainInner() {
                 onPointerDown={(e) => {
                   if (!prepSpeech.supported) {
                     showToast(
-                      "当前环境不支持按住说话。请直接在上方输入；或使用 Chrome 桌面端。"
+                      "当前环境无法使用语音，请改用文字输入；桌面端推荐 Chrome。"
                     );
                     return;
                   }
@@ -469,7 +465,7 @@ function TrainInner() {
                 </svg>
               </div>
               <p className="mt-4 max-w-[18rem] text-center text-[13px] leading-snug text-dojo-muted">
-                按住说话 · 与上方输入同一内容
+                长按麦克风 · 与上方文字同步
               </p>
             </div>
           </div>
@@ -491,7 +487,7 @@ function TrainInner() {
               直接开练 · 不描述了
             </span>
             <span className="mt-1 block text-center text-[12px] leading-snug text-white/90">
-              懒得描述？AI 用默认人设直接开整
+              懒得喷？AI 用默认人设直接开整
             </span>
           </button>
         </div>
@@ -548,11 +544,28 @@ function TrainInner() {
           </motion.div>
         )}
 
-        {isDone && (
-          <div className="mx-auto w-full max-w-xs px-2 py-6">
-            <p className="text-center text-sm text-dojo-muted">生成战报中…</p>
+        {isDone && !reportReady ? (
+          <div
+            className="mt-3 flex flex-col items-center gap-2 pt-1"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            {/* mix-blend-multiply：把视频里接近白底的区域与下方渐变「乘」在一起，减轻白块感；完美去底需透明素材（WebM/APNG 等） */}
+            <video
+              className="mx-auto block max-h-[min(52vh,380px)] w-auto max-w-[min(100%,400px)] border-0 bg-transparent object-contain shadow-none outline-none ring-0 mix-blend-multiply"
+              src={reportGeneratingWhipUrl()}
+              autoPlay
+              loop
+              muted
+              playsInline
+              controls={false}
+            />
+            <p className="text-center text-sm font-medium tracking-wide text-dojo-muted">
+              正在生成战报…
+            </p>
           </div>
-        )}
+        ) : null}
       </div>
 
       {roundIndex < 3 && (
@@ -565,10 +578,10 @@ function TrainInner() {
               className={`${inputField} flex-1 rounded-full py-2.5 text-[15px]`}
               placeholder={
                 speech.listening
-                  ? "正在听写…"
+                  ? "听写中…"
                   : aiLoading
                     ? "教练在憋台词…"
-                    : "输入回复"
+                    : "输入你的回复"
               }
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -583,12 +596,12 @@ function TrainInner() {
               aria-label={speech.listening ? "停止语音识别" : "语音输入"}
               title={
                 speechMicBlocked
-                  ? "请等待本轮教练台词出现后再用语音"
+                  ? "请先等本轮台词出现"
                   : !speech.supported
-                    ? "当前环境可能不支持网页语音，点此查看说明"
+                    ? "当前环境可能不支持语音，点此了解"
                     : speech.listening
-                      ? "点击停止"
-                      : "点击说话（中文）"
+                      ? "结束听写"
+                      : "语音输入（中文）"
               }
               className={`shrink-0 rounded-full border px-3 py-2.5 text-dojo-text transition-colors disabled:opacity-40 ${
                 speech.listening
@@ -600,7 +613,7 @@ function TrainInner() {
                 if (speechMicBlocked) return;
                 if (!speech.supported) {
                   showToast(
-                    "网页语音需要浏览器支持 Web Speech API。若按钮无效：勿用微信内置浏览器，改用系统 Chrome；手机用 http://局域网 访问时可能不可用，可试 HTTPS 隧道或在电脑 localhost 测试；iOS Safari 常不支持。"
+                    "语音需浏览器支持 Web Speech API。微信内置页可能不可用；请换 Chrome；手机非 HTTPS 局域网亦可能受限。"
                   );
                   return;
                 }
@@ -641,7 +654,9 @@ export default function TrainPage() {
   return (
     <Suspense
       fallback={
-        <div className="py-20 text-center text-dojo-muted">加载训练…</div>
+        <div className="py-20 text-center text-sm text-dojo-muted">
+          载入训练舱…
+        </div>
       }
     >
       <TrainInner />
